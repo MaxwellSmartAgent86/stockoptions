@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Scenario deck — Five answers</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="lobby.css">
+</head>
+<body>
+  <a class="skip" href="#ask">Skip to the scenario</a>
+  <header class="top">
+    <a href="index.html">Study</a>
+    <a href="games.html">Games</a>
+    <p id="progress">Scenario deck</p>
+  </header>
+  <main class="sheet" id="sheet" hidden>
+    <p class="wordmark">Five answers</p>
+    <h1 id="ask" tabindex="-1">Which trade fits</h1>
+    <p class="scenario" id="scenario"></p>
+    <div class="choices" id="choices" role="group" aria-label="Strategies"></div>
+    <p class="because" id="because"></p>
+    <div class="follow" id="follow" hidden>
+      <a id="study" href="index.html">Read this trade</a>
+      <button type="button" class="next" id="next">Next</button>
+    </div>
+  </main>
+  <div class="overlay" id="overlay">
+    <div class="card">
+      <h2 id="overlay-title">Scenario deck</h2>
+      <p id="overlay-body">Each card is a setup: the outlook, whether you own the shares, and what changed. Pick the strategy that fits. There is no clock. A wrong pick stays on the card so you can read why. Keys 1 through 4 choose.</p>
+      <button type="button" class="start" id="start">Start the deck</button>
+    </div>
+  </div>
+  <script src="trades.js"></script>
+  <script src="deck.js"></script>
+</body>
+</html>

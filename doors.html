@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Doors — Five answers</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="game.css">
+</head>
+<body>
+  <header class="hud">
+    <a class="hud-link" href="index.html">Study</a>
+    <a class="hud-link" href="games.html">Games</a>
+    <p class="hud-score">Score <span id="score">0</span></p>
+    <p class="hud-lives" id="lives">Lives 3</p>
+  </header>
+  <section class="prompt" aria-live="polite">
+    <p class="kind" id="kind">The best way</p>
+    <h1 id="ask">The setup changed.</h1>
+    <p class="clock" id="clock"></p>
+    <p class="because" id="because"></p>
+  </section>
+  <div class="field doors-field" id="doors"></div>
+  <div class="overlay" id="overlay">
+    <div class="card">
+      <h2 id="overlay-title">Doors</h2>
+      <p id="overlay-body">You already hold a trade. One thing about the setup changes. Three doors. Pick the trade you switch to before the eight seconds run out. Keys 1, 2, and 3. A wrong door, or the clock, costs a life.</p>
+      <button type="button" class="start" id="start">Start</button>
+    </div>
+  </div>
+  <script src="trades.js"></script>
+  <script src="doors.js"></script>
+</body>
+</html>

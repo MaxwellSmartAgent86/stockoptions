@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Tapes — Five answers</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="game.css">
+</head>
+<body>
+  <header class="hud">
+    <a class="hud-link" href="index.html">Study</a>
+    <a class="hud-link" href="games.html">Games</a>
+    <p class="hud-score">Score <span id="score">0</span></p>
+    <p class="hud-lives" id="lives">Lives 3</p>
+  </header>
+  <section class="prompt" aria-live="polite">
+    <p class="kind" id="kind">Where it is used</p>
+    <h1 id="ask">Tap a tape this trade fits.</h1>
+    <p class="because" id="because"></p>
+  </section>
+  <div class="field lane" id="field">
+    <p class="falling" id="falling"></p>
+    <div class="ground" aria-hidden="true"><span>Ground</span></div>
+  </div>
+  <div class="dock" id="dock">
+    <button type="button" class="tape" data-mark="-2"><span class="mark">−2</span><span class="tape-word">Hard drop</span></button>
+    <button type="button" class="tape" data-mark="-1"><span class="mark">−1</span><span class="tape-word">Ordinary drop</span></button>
+    <button type="button" class="tape" data-mark="0"><span class="mark">0</span><span class="tape-word">Sideways</span></button>
+    <button type="button" class="tape" data-mark="+1"><span class="mark">+1</span><span class="tape-word">Ordinary rise</span></button>
+    <button type="button" class="tape" data-mark="+2"><span class="mark">+2</span><span class="tape-word">Hard rise</span></button>
+  </div>
+  <div class="overlay" id="overlay">
+    <div class="card">
+      <h2 id="overlay-title">Tapes</h2>
+      <p id="overlay-body">A trade falls. Tap one outlook it fits before it reaches the ground. Some trades fit two tapes. Either correct tape counts, and the line under the question names both. Keys 1 through 5 follow the tapes from the left. A wrong tape, or the ground, costs a life.</p>
+      <button type="button" class="start" id="start">Start</button>
+    </div>
+  </div>
+  <script src="trades.js"></script>
+  <script src="tapes.js"></script>
+</body>
+</html>

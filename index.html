@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Five answers</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#trade-title">Skip to the trade</a>
+  <header class="rail">
+    <p class="wordmark">Five answers</p>
+    <p class="tagline">Each trade, the same five answers.</p>
+    <a class="drill-link" href="games.html">Play the games</a>
+    <a class="drill-link" href="deck.html">Scenario deck</a>
+    <ol class="method">
+      <li>What it is</li>
+      <li>Where it is used</li>
+      <li>Why it is used</li>
+      <li>How it is used</li>
+      <li>The best way</li>
+    </ol>
+    <p class="rail-label">Eleven trades, in learning order</p>
+    <ul class="trade-list" aria-label="Trades"></ul>
+  </header>
+  <main class="shell">
+    <article class="lesson">
+      <div class="lesson-text">
+        <h1 id="trade-title" aria-live="polite">Long call</h1>
+        <div class="lesson-copy"></div>
+      </div>
+      <aside class="proof" aria-label="Payoff and figures"></aside>
+    </article>
+    <footer class="colophon">
+      <p>Five answers is a study page for eleven option structures. The order is the order a trader learns them. Payoff shapes and the numbered examples follow The Cashflow Academy, “Every Options Trading Strategy Explained.” Where that lesson did not name a premium or a strike, the page leaves it unnamed.</p>
+      <p class="keys">Up and down arrows move through the trades. This is a way to study the choice. It is not a recommendation to place a trade. <a href="https://www.youtube.com/watch?v=5BMMrfBtA_c">Source lesson</a></p>
+    </footer>
+  </main>
+  <noscript>The five answers need JavaScript to switch trades.</noscript>
+  <script src="trades.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

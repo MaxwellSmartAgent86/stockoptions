@@ -1,0 +1,59 @@
+/* Hallmark · genre: editorial · macrostructure: Split Studio · theme: Almanac
+ * tone: technical · audience: a trader learning the eleven structures
+ * use: the same five answers on every trade
+ * enrichment: hand-built payoff SVG · nav: N3 · footer: Ft4
+ * H2 knobs: ratio=7/5, right=proof, divider=negative space
+ * N3 knobs: side=left, width=16rem, indicator=numbered
+ * paper: light · display: roman-serif · accent: cool
+ * pre-emit critique: P5 H5 E4 S5 R4 V4
+ */
+
+:root {
+  --color-paper: oklch(96.5% 0.008 250);
+  --color-paper-2: oklch(93.2% 0.012 250);
+  --color-rule: oklch(84% 0.014 250);
+  --color-neutral: oklch(40% 0.02 255);
+  --color-muted: oklch(32% 0.022 258);
+  --color-ink: oklch(22% 0.028 258);
+  --color-accent: oklch(40% 0.14 258);
+  --color-focus: oklch(40% 0.14 258);
+  --color-gain: oklch(38% 0.09 155);
+  --color-loss: oklch(40% 0.12 28);
+  --color-gain-wash: oklch(90% 0.04 155);
+  --color-loss-wash: oklch(91% 0.035 28);
+
+  --font-display: "Newsreader", "Iowan Old Style", Palatino, "Palatino Linotype", serif;
+  --font-body: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
+  --font-figure: "IBM Plex Mono", ui-monospace, monospace;
+
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+  --space-3xl: 6rem;
+
+  --text-sm: 0.875rem;
+  --text-base: 1.0625rem;
+  --text-md: 1.35rem;
+  --text-lg: 1.7rem;
+  --text-xl: clamp(2rem, 1.2vw + 1.35rem, 3.15rem);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 100ms;
+  --dur-short: 190ms;
+
+  --rail: 16.5rem;
+  --rule: 1px solid var(--color-rule);
+
+  --z-base: 1;
+  --z-raised: 10;
+  --z-sticky: 200;
+
+  --radius: 2px;
+}

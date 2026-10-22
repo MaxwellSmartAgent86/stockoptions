@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Falling answers — Five answers</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="game.css">
+</head>
+<body>
+  <header class="hud">
+    <a class="hud-link" href="index.html">Study</a>
+    <a class="hud-link" href="games.html">Games</a>
+    <p class="hud-score">Score <span id="score">0</span></p>
+    <p class="hud-lives" id="lives" aria-live="polite">Lives 3</p>
+    <button type="button" class="hud-sound" id="sound" aria-pressed="false">Sound off</button>
+    <button type="button" class="fire" id="fire">Fire</button>
+  </header>
+  <section class="prompt" aria-live="polite">
+    <p class="kind" id="kind">Where it is used</p>
+    <h1 id="ask">Shoot the trade that fits.</h1>
+    <p class="because" id="because"></p>
+  </section>
+  <div class="field" id="field">
+    <div class="ground" aria-hidden="true"><span>Ground</span></div>
+    <div class="turret" id="turret" aria-hidden="true"></div>
+  </div>
+  <div class="overlay" id="overlay">
+    <div class="card">
+      <h2 id="overlay-title">Falling answers</h2>
+      <p id="overlay-body">A situation stays put. Three answers fall. Shoot the one that fits, or tap it, before the right answer reaches the ground. A wrong shot costs a life. The words are the ones a desk uses: buy-write, naked put, time spread.</p>
+      <button type="button" class="start" id="start">Start</button>
+    </div>
+  </div>
+  <script src="trades.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

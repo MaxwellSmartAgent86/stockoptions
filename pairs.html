@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Pairs — Five answers</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="game.css">
+</head>
+<body>
+  <header class="hud">
+    <a class="hud-link" href="index.html">Study</a>
+    <a class="hud-link" href="games.html">Games</a>
+    <p class="hud-score">Flips <span id="flips">0</span></p>
+    <p class="hud-lives" id="matched">Matched 0</p>
+  </header>
+  <section class="prompt" aria-live="polite">
+    <p class="kind" id="kind">Name</p>
+    <h1 id="ask">Match the name to the structure.</h1>
+    <p class="because" id="because"></p>
+  </section>
+  <div class="board" id="board"></div>
+  <div class="overlay" id="overlay">
+    <div class="card">
+      <h2 id="overlay-title">Pairs</h2>
+      <p id="overlay-body">Eight cards. Turn two. A desk name matches the structure it means. Buy-write matches covered call. Two names for the same trade do not match each other. Clear the table, then the next four.</p>
+      <button type="button" class="start" id="start">Start</button>
+    </div>
+  </div>
+  <script src="trades.js"></script>
+  <script src="pairs.js"></script>
+</body>
+</html>
