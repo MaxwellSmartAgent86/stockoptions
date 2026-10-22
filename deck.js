@@ -4,6 +4,9 @@
   const scenarioEl = document.getElementById("scenario");
   const choicesEl = document.getElementById("choices");
   const becauseEl = document.getElementById("because");
+  const fit = document.getElementById("fit");
+  const fitChart = document.getElementById("fit-chart");
+  const fitCap = document.getElementById("fit-cap");
   const follow = document.getElementById("follow");
   const studyLink = document.getElementById("study");
   const nextBtn = document.getElementById("next");
@@ -183,8 +186,141 @@
     return copy;
   }
 
+  const SHAPES = {
+    "long-call": [[0.04, -0.42], [0.46, -0.42], [0.94, 0.74]],
+    "long-put": [[0.06, 0.74], [0.54, -0.42], [0.96, -0.42]],
+    "covered-call": [[0.04, -0.78], [0.5, 0.36], [0.96, 0.36]],
+    "cash-secured-put": [[0.04, -0.78], [0.5, 0.36], [0.96, 0.36]],
+    "wheel": [[0.04, -0.78], [0.5, 0.36], [0.96, 0.36]],
+    "protective-put": [[0.04, -0.38], [0.44, -0.38], [0.96, 0.74]],
+    "bull-call": [[0.04, -0.46], [0.34, -0.46], [0.64, 0.4], [0.96, 0.4]],
+    "bear-put": [[0.04, 0.4], [0.36, 0.4], [0.66, -0.46], [0.96, -0.46]],
+    "iron-condor": [[0.04, -0.4], [0.18, -0.4], [0.34, 0.4], [0.66, 0.4], [0.82, -0.4], [0.96, -0.4]],
+    "straddle": [[0.08, 0.74], [0.5, -0.58], [0.92, 0.74]],
+    "strangle": [[0.06, 0.7], [0.28, -0.42], [0.72, -0.42], [0.94, 0.7]],
+    "calendar": [[0.08, -0.36], [0.26, -0.06], [0.38, 0.28], [0.5, 0.58], [0.62, 0.28], [0.74, -0.06], [0.92, -0.36]]
+  };
+
   function buttons() {
     return Array.from(choicesEl.querySelectorAll(".choice"));
+  }
+
+  function svgNode(name, attrs) {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+    Object.keys(attrs).forEach((key) => node.setAttribute(key, attrs[key]));
+    return node;
+  }
+
+  function arrow(svg, x, y, dx, dy) {
+    const len = 8;
+    const wing = 3.6;
+    const points = [
+      [x, y],
+      [x - dx * len + -dy * wing, y - dy * len + dx * wing],
+      [x - dx * len - -dy * wing, y - dy * len - dx * wing]
+    ].map((pair) => pair[0].toFixed(1) + "," + pair[1].toFixed(1)).join(" ");
+    svg.append(svgNode("polygon", { points: points, fill: "var(--color-ink)" }));
+  }
+
+  function drawFit(id) {
+    const points = SHAPES[id];
+    fitChart.replaceChildren();
+    if (!points) {
+      fit.hidden = true;
+      return;
+    }
+    const left = 52;
+    const right = 184;
+    const top = 36;
+    const bottom = 180;
+    const zero = (top + bottom) / 2;
+    const span = (bottom - top) / 2;
+    const svg = svgNode("svg", {
+      viewBox: "0 0 220 220",
+      class: "fit-svg",
+      role: "img",
+      "aria-labelledby": "fit-title"
+    });
+    const title = svgNode("title", { id: "fit-title" });
+    const trade = TRADES.find((item) => item.id === id);
+    title.textContent = (trade ? trade.name : "Trade") + " payoff";
+    svg.append(title);
+    const defs = svgNode("defs", {});
+    const clip = svgNode("clipPath", { id: "fit-clip" });
+    clip.append(svgNode("circle", { cx: "110", cy: "108", r: "84" }));
+    defs.append(clip);
+    svg.append(defs);
+
+    function X(t) { return left + t * (right - left); }
+    function Y(value) { return zero - value * span * 0.92; }
+    const mapped = points.map((pair) => ({ x: X(pair[0]), y: Y(pair[1]), v: pair[1] }));
+    const plot = svgNode("g", { "clip-path": "url(#fit-clip)" });
+
+    function poly(pts, fill) {
+      const d = pts.map((point, index) => (index ? "L" : "M") + point.x.toFixed(1) + " " + point.y.toFixed(1)).join(" ") + " Z";
+      plot.append(svgNode("path", { d: d, fill: fill }));
+    }
+
+    for (let i = 0; i < mapped.length - 1; i += 1) {
+      const a = mapped[i];
+      const b = mapped[i + 1];
+      const sameSide = (a.v >= 0 && b.v >= 0) || (a.v <= 0 && b.v <= 0);
+      if (sameSide) {
+        const sign = a.v > 0 || b.v > 0 ? 1 : -1;
+        if (a.v === 0 && b.v === 0) continue;
+        poly(
+          [a, b, { x: b.x, y: zero }, { x: a.x, y: zero }],
+          sign > 0 ? "var(--color-gain-wash)" : "var(--color-loss-wash)"
+        );
+      } else {
+        const t = (0 - a.v) / (b.v - a.v);
+        const mid = { x: a.x + t * (b.x - a.x), y: zero, v: 0 };
+        poly([a, mid, { x: a.x, y: zero }], a.v > 0 ? "var(--color-gain-wash)" : "var(--color-loss-wash)");
+        poly([mid, b, { x: b.x, y: zero }], b.v > 0 ? "var(--color-gain-wash)" : "var(--color-loss-wash)");
+      }
+    }
+
+    plot.append(svgNode("path", {
+      d: mapped.map((point, index) => (index ? "L" : "M") + point.x.toFixed(1) + " " + point.y.toFixed(1)).join(" "),
+      fill: "none",
+      stroke: "var(--color-ink)",
+      "stroke-width": "2.5",
+      "stroke-linejoin": "round",
+      "stroke-linecap": "round"
+    }));
+    svg.append(plot);
+    svg.append(svgNode("circle", {
+      cx: "110",
+      cy: "108",
+      r: "86",
+      fill: "none",
+      stroke: "var(--color-ink)",
+      "stroke-width": "3"
+    }));
+    const axisX = left + 4;
+    svg.append(svgNode("line", {
+      x1: String(axisX),
+      y1: String(top + 10),
+      x2: String(axisX),
+      y2: String(bottom - 8),
+      stroke: "var(--color-ink)",
+      "stroke-width": "1.6"
+    }));
+    arrow(svg, axisX, top + 2, 0, -1);
+    arrow(svg, axisX, bottom, 0, 1);
+    svg.append(svgNode("line", {
+      x1: String(left),
+      y1: String(zero),
+      x2: String(right - 10),
+      y2: String(zero),
+      stroke: "var(--color-ink)",
+      "stroke-width": "1.6",
+      "stroke-dasharray": "2 3"
+    }));
+    arrow(svg, right, zero, 1, 0);
+    fitChart.append(svg);
+    fitCap.textContent = trade ? trade.name : "";
+    fit.hidden = false;
   }
 
   function show() {
@@ -193,6 +329,8 @@
     progress.textContent = (index + 1) + " of " + deck.length;
     scenarioEl.textContent = item.prompt;
     becauseEl.textContent = "";
+    fit.hidden = true;
+    fitChart.replaceChildren();
     follow.hidden = true;
     choicesEl.replaceChildren();
     shuffle(item.choices).forEach((name) => {
@@ -222,6 +360,7 @@
     becauseEl.textContent = ok
       ? "Right. " + item.because
       : "Wrong. You chose " + button.dataset.name + ". " + item.because;
+    drawFit(byName[item.correct]);
     studyLink.href = "index.html#" + byName[item.correct];
     nextBtn.textContent = index === deck.length - 1 ? "Finish" : "Next";
     follow.hidden = false;

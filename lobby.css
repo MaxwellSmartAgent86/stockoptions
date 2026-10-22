@@ -321,6 +321,22 @@ label {
   display: none;
 }
 
+.fit {
+  margin: var(--space-md) 0 0;
+  max-width: 16rem;
+}
+
+.fit-svg {
+  display: block;
+  width: min(100%, 16rem);
+  height: auto;
+}
+
+.fit figcaption {
+  margin-top: var(--space-xs);
+  font-weight: 600;
+}
+
 .follow {
   display: flex;
   flex-wrap: wrap;
@@ -366,6 +382,7 @@ label {
 .overlay[hidden],
 .sheet[hidden],
 .follow[hidden],
+.fit[hidden],
 .follow a[hidden],
 .next[hidden] {
   display: none;
