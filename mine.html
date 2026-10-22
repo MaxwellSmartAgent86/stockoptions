@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>My trades — Five answers</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="lobby.css">
+</head>
+<body>
+  <a class="skip" href="#mine-title">Skip to my trades</a>
+  <header class="top">
+    <a href="index.html">Study</a>
+    <a href="games.html">Games</a>
+    <a href="deck.html">Scenario deck</a>
+  </header>
+  <main class="sheet">
+    <p class="wordmark">Five answers</p>
+    <h1 id="mine-title">My trades</h1>
+    <p class="lede">Pull a read-only feed, or paste its JSON. Each position is named as one of the eleven structures, with the lesson’s reason for that shape and the trade it would switch to if the setup changed. The feed shows the legs. It does not show the motive.</p>
+    <form id="pull" class="pull">
+      <label for="url">Read-only URL</label>
+      <input class="entry" id="url" name="url" type="url" inputmode="url" autocomplete="off" spellcheck="false">
+      <label for="token">Bearer token</label>
+      <input class="entry" id="token" name="token" type="password" autocomplete="off" spellcheck="false">
+      <p class="note">The token stays in this browser for the session. It is not written into the page or the public repo.</p>
+      <label for="paste">Or paste the JSON</label>
+      <textarea class="paste" id="paste" name="paste" spellcheck="false"></textarea>
+      <div class="actions">
+        <button type="submit" class="next" id="read">Read trades</button>
+        <button type="button" class="next" id="sample">Use the lesson sample</button>
+      </div>
+      <p class="note" id="status" role="status"></p>
+    </form>
+    <div id="results"></div>
+    <p class="closing">A way to read a position against the lesson. Not a recommendation to place a trade.</p>
+  </main>
+  <script src="trades.js"></script>
+  <script src="mine.js"></script>
+</body>
+</html>
