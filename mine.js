@@ -1,11 +1,13 @@
 (function () {
   const form = document.getElementById("pull");
-  const urlInput = document.getElementById("url");
-  const tokenInput = document.getElementById("token");
+  const secretInput = document.getElementById("secret");
+  const refreshInput = document.getElementById("refresh");
+  const tastyBtn = document.getElementById("tasty");
   const pasteInput = document.getElementById("paste");
   const statusEl = document.getElementById("status");
   const results = document.getElementById("results");
   const sampleBtn = document.getElementById("sample");
+  const tastyRoot = "https://api.tastyworks.com";
 
   const byId = {};
   TRADES.forEach((trade) => {
@@ -119,7 +121,8 @@
       strike: strikeField != null ? strikeField : (parsed ? parsed.strike : null),
       expiration: (expRaw ? expRaw.slice(0, 10) : "") || (parsed ? parsed.expiration : ""),
       cashSecured: raw.cash_secured === true || raw.cashSecured === true || raw["cash-secured"] === true,
-      symbol: text(field(raw, ["underlying_symbol", "underlying-symbol", "underlying", "root"]) || (parsed && parsed.root) || field(raw, ["symbol"]))
+      symbol: text(field(raw, ["underlying_symbol", "underlying-symbol", "underlying", "root"]) || (parsed && parsed.root) || field(raw, ["symbol"])),
+      account: text(raw["account-label"] || "")
     };
   }
 
@@ -152,7 +155,7 @@
     rows.forEach((row) => {
       const leg = legFrom(row);
       if (!leg || leg.kind === "cash") return;
-      const key = leg.symbol || text(row.symbol) || "Position";
+      const key = (leg.account ? leg.account + " · " : "") + (leg.symbol || text(row.symbol) || "Position");
       if (!index[key]) {
         index[key] = { symbol: key, legs: [] };
         groups.push(index[key]);
@@ -443,39 +446,137 @@
     render(groupRows(rowsOf(data)));
   }
 
+  function tastyError(err) {
+    const body = err.body || {};
+    const nested = body.error && typeof body.error === "object" ? body.error : {};
+    const code = body.error_code || nested.code || "";
+    if (err.status === 400 || code === "invalid_grant" || code === "invalid_scope") {
+      return "tastytrade rejected that client secret or refresh token. The client scope has to be read, on the live site, and the refresh token has to come from Create Grant. Neither value was stored.";
+    }
+    if (err.status === 401) {
+      return "tastytrade refused the token. A sandbox grant does not work against the live site. Neither value was stored.";
+    }
+    if (err.status === 403) {
+      return "That grant can sign in, and it cannot read positions. Create the client with the read scope. Neither value was stored.";
+    }
+    return "The browser could not read tastytrade. Neither value was stored.";
+  }
+
+  function tastyFetch(path, options) {
+    return fetch(tastyRoot + path, options).then((res) => {
+      return res.json().catch(() => ({})).then((body) => {
+        if (!res.ok) {
+          const err = new Error("status " + res.status);
+          err.status = res.status;
+          err.body = body;
+          throw err;
+        }
+        return body;
+      });
+    });
+  }
+
+  function positionPages(access, number, offset, rows) {
+    if (offset > 20) return Promise.resolve(rows);
+    const path = "/accounts/" + encodeURIComponent(number) + "/positions?page-offset=" + offset + "&per-page=100";
+    return tastyFetch(path, {
+      headers: { Accept: "application/json", Authorization: "Bearer " + access }
+    }).then((data) => {
+      const items = (data.data && data.data.items) || [];
+      items.forEach((item) => rows.push(item));
+      const page = data.pagination;
+      if (page && page["total-pages"] && offset + 1 < page["total-pages"]) {
+        return positionPages(access, number, offset + 1, rows);
+      }
+      return rows;
+    });
+  }
+
+  function readTasty(secret, refresh) {
+    results.replaceChildren();
+    statusEl.textContent = "Asking tastytrade for a read token…";
+    tastyFetch("/oauth/token", {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grant_type: "refresh_token",
+        refresh_token: refresh,
+        client_secret: secret,
+        scope: "read"
+      })
+    }).then((data) => {
+      const access = data.access_token;
+      if (!access) throw new Error("token");
+      statusEl.textContent = "Reading accounts…";
+      return tastyFetch("/customers/me/accounts", {
+        headers: { Accept: "application/json", Authorization: "Bearer " + access }
+      }).then((payload) => ({ access: access, payload: payload }));
+    }).then((got) => {
+      const items = (got.payload.data && got.payload.data.items) || [];
+      const seen = {};
+      const accounts = [];
+      items.forEach((row) => {
+        const account = row.account || row;
+        const number = text(account["account-number"] || account.account_number);
+        if (!number || account["is-closed"] === true) return;
+        let name = text(account.nickname || account["account-type-name"]) || "Account";
+        if (seen[name]) name = name + " " + number.slice(-4);
+        seen[name] = true;
+        accounts.push({ number: number, name: name });
+      });
+      if (!accounts.length) {
+        statusEl.textContent = "tastytrade returned no open accounts.";
+        return null;
+      }
+      statusEl.textContent = "Reading open positions…";
+      return Promise.all(accounts.map((account) => {
+        return positionPages(got.access, account.number, 0, []).then((rows) => {
+          rows.forEach((row) => { row["account-label"] = account.name; });
+          return rows;
+        });
+      }));
+    }).then((lists) => {
+      if (!lists) return;
+      render(groupRows(lists.reduce((all, rows) => all.concat(rows), [])));
+    }).catch((err) => {
+      results.replaceChildren();
+      statusEl.textContent = tastyError(err);
+    });
+  }
+
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     results.replaceChildren();
     const pasted = pasteInput.value.trim();
-    if (pasted) {
-      try {
-        readJson(pasted);
-      } catch (err) {
-        statusEl.textContent = "That paste is not JSON the reader could use.";
+    if (!pasted) {
+      statusEl.textContent = "Paste the JSON, or use Read tastytrade.";
+      return;
+    }
+    try {
+      readJson(pasted);
+    } catch (err) {
+      statusEl.textContent = "That paste is not JSON the reader could use.";
+    }
+  });
+
+  tastyBtn.addEventListener("click", () => {
+    const secret = secretInput.value.trim();
+    const refresh = refreshInput.value.trim();
+    if (!secret || !refresh) {
+      results.replaceChildren();
+      statusEl.textContent = "Paste both the client secret and the refresh token.";
+      return;
+    }
+    readTasty(secret, refresh);
+  });
+
+  [secretInput, refreshInput].forEach((input) => {
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        tastyBtn.click();
       }
-      return;
-    }
-    const url = urlInput.value.trim();
-    if (!url) {
-      statusEl.textContent = "Add a read-only URL, or paste the JSON.";
-      return;
-    }
-    statusEl.textContent = "Reading…";
-    const headers = { Accept: "application/json" };
-    const token = tokenInput.value.trim();
-    if (token) headers.Authorization = "Bearer " + token;
-    fetch(url, { headers: headers })
-      .then((res) => {
-        if (!res.ok) throw new Error("status " + res.status);
-        return res.json();
-      })
-      .then((data) => {
-        if (!/[?&](token|access_token|key|secret|password)=/i.test(url)) sessionStorage.setItem("trades-url", url);
-        readJson(JSON.stringify(data));
-      })
-      .catch(() => {
-        statusEl.textContent = "The browser could not read that URL. If the feed blocks other sites, paste the JSON instead. The token was not stored.";
-      });
+    });
   });
 
   sampleBtn.addEventListener("click", () => {
@@ -483,7 +584,4 @@
     statusEl.textContent = "Sample loaded. These are the lesson’s Coca-Cola shapes, not an account.";
     pasteInput.focus();
   });
-
-  const saved = sessionStorage.getItem("trades-url");
-  if (saved) urlInput.value = saved;
 })();

@@ -19,14 +19,25 @@
   <main class="sheet">
     <p class="wordmark">Five answers</p>
     <h1 id="mine-title">My trades</h1>
-    <p class="lede">Pull a read-only feed, or paste its JSON. Each position is named as one of the eleven structures, with the lesson’s reason for that shape and the trade it would switch to if the setup changed. The feed shows the legs. It does not show the motive.</p>
+    <p class="lede">Read the open positions at tastytrade. Each one is named as one of the eleven structures, with the lesson’s reason for that shape and the trade it would switch to if the setup changed. The feed shows the legs. It does not show the motive.</p>
     <form id="pull" class="pull">
-      <label for="url">Read-only URL</label>
-      <input class="entry" id="url" name="url" type="url" inputmode="url" autocomplete="off" spellcheck="false">
-      <label for="token">Bearer token</label>
-      <input class="entry" id="token" name="token" type="password" autocomplete="off" spellcheck="false">
-      <p class="note">The token stays in this browser for the session. It is not written into the page or the public repo.</p>
-      <label for="paste">Or paste the JSON</label>
+      <h2>tastytrade</h2>
+      <p class="note">Create a client with the read scope only, then a personal grant. This page exchanges that grant for a 15-minute token and reads open positions. The client secret and the refresh token stay in this tab. They are not saved.</p>
+      <ol class="steps">
+        <li>On my.tastytrade.com go to Manage, My Profile, API, OAuth Applications, and choose New OAuth client. Use the live site, not the sandbox.</li>
+        <li>Set the scope to read. Leave trade off. For the redirect, use <code>https://maxwellsmartagent86.github.io/stockoptions/mine.html</code>. This page does not use the redirect.</li>
+        <li>Copy the client secret before you leave that screen. It is shown once.</li>
+        <li>Choose Manage, then Create Grant, and copy the refresh token. Two-factor authentication has to be on for a read grant.</li>
+      </ol>
+      <label for="secret">Client secret</label>
+      <input class="entry" id="secret" name="secret" type="password" autocomplete="off" spellcheck="false">
+      <label for="refresh">Refresh token</label>
+      <input class="entry" id="refresh" name="refresh" type="password" autocomplete="off" spellcheck="false">
+      <div class="actions">
+        <button type="button" class="next" id="tasty">Read tastytrade</button>
+      </div>
+      <h2>Or paste the JSON</h2>
+      <label for="paste">Positions JSON</label>
       <textarea class="paste" id="paste" name="paste" spellcheck="false"></textarea>
       <div class="actions">
         <button type="submit" class="next" id="read">Read trades</button>
