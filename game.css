@@ -105,9 +105,27 @@ h1 {
 .because {
   margin: var(--space-sm) 0 0;
   max-width: 62ch;
-  max-height: 6.5rem;
   min-height: 1.4em;
-  overflow: auto;
+}
+
+.continue {
+  margin-top: var(--space-sm);
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--color-ink);
+  background: transparent;
+  color: var(--color-ink);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.continue[hidden] {
+  display: none;
+}
+
+.continue:active {
+  transform: translateY(1px);
 }
 
 .because:empty {
@@ -501,7 +519,8 @@ h1 {
   .door:active,
   .part:active,
   .pair:active,
-  .stamp:active {
+  .stamp:active,
+  .continue:active {
     transition: none;
   }
 }

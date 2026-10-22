@@ -12,6 +12,7 @@
   const startBtn = document.getElementById("start");
   const soundBtn = document.getElementById("sound");
   const fireBtn = document.getElementById("fire");
+  const continueBtn = document.getElementById("continue");
 
   const SITUATIONS = [
     { kind: "Where it is used", prompt: "You do not own the shares. You want a violent rally, and the gain left open.", correct: "Long call", wrong: ["Bull call spread", "Covered call"], because: "Long call. Outlook +2. A normal rise is the bull call spread.", study: "long-call" },
@@ -203,32 +204,42 @@
       score += 100 + streak * 25;
       speed = Math.min(150, speed * 1.045);
       tone(560, 0.08);
-      finish(true);
+      finish(true, chip.label);
     } else {
       chip.el.classList.add("hit-wrong");
       lives -= 1;
       streak = 0;
       tone(120, 0.12);
       misses.push(question);
-      finish(false);
+      finish(false, chip.label);
     }
     paintHud();
   }
 
-  function finish(ok) {
+  function finish(ok, picked) {
     mode = "resolve";
-    becauseEl.textContent = (ok ? "Yes. " : "No. ") + question.because;
+    const right = chips.find((chip) => chip.correct);
+    if (right) right.el.classList.add("hit-right");
+    if (ok) becauseEl.textContent = "Right. " + question.because;
+    else if (picked) becauseEl.textContent = "Wrong. You chose " + picked + ". " + question.correct + " fits. " + question.because;
+    else becauseEl.textContent = "Missed. " + question.correct + " reached the ground. " + question.because;
     if (bullet) {
       bullet.el.remove();
       bullet = null;
     }
-    window.setTimeout(() => {
-      if (lives <= 0) {
-        gameOver();
-        return;
-      }
-      spawn();
-    }, 1400);
+    continueBtn.hidden = false;
+    continueBtn.focus();
+  }
+
+  function continueRound() {
+    if (mode !== "resolve") return;
+    continueBtn.hidden = true;
+    becauseEl.textContent = "";
+    if (lives <= 0) {
+      gameOver();
+      return;
+    }
+    spawn();
   }
 
   function gameOver() {
@@ -266,6 +277,7 @@
     deck = buildDeck();
     paintHud();
     overlay.hidden = true;
+    continueBtn.hidden = true;
     turretX = field.clientWidth / 2;
     spawn();
   }
@@ -367,10 +379,11 @@
       holdRight = true;
       event.preventDefault();
     }
-    if (event.key === " " || event.key === "ArrowUp") {
+    if (event.key === " " || event.key === "ArrowUp" || event.key === "Enter") {
       event.preventDefault();
-      if (mode === "title" || mode === "over") startGame();
-      else fire();
+      if (mode === "resolve") continueRound();
+      else if (mode === "title" || mode === "over") startGame();
+      else if (event.key !== "Enter") fire();
     }
   });
   document.addEventListener("keyup", (event) => {
@@ -379,6 +392,7 @@
   });
 
   startBtn.addEventListener("click", startGame);
+  continueBtn.addEventListener("click", continueRound);
   fireBtn.addEventListener("click", (event) => {
     event.stopPropagation();
     fire();

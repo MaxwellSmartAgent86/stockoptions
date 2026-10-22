@@ -9,6 +9,7 @@
   const overlayTitle = document.getElementById("overlay-title");
   const overlayBody = document.getElementById("overlay-body");
   const startBtn = document.getElementById("start");
+  const continueBtn = document.getElementById("continue");
   const tapes = Array.from(document.querySelectorAll(".tape"));
 
   const WORD = {
@@ -89,22 +90,31 @@
     overlayBody.after(list);
   }
 
-  function finishRound(ok) {
+  function finishRound(ok, picked) {
     mode = "resolve";
-    becauseEl.textContent = (ok ? "Yes. " : "No. ") + explain(trade);
-    window.setTimeout(() => {
-      clearTapes();
-      if (lives <= 0) {
-        mode = "over";
-        overlay.hidden = false;
-        overlayTitle.textContent = "Out of lives";
-        overlayBody.textContent = "Score " + score + ". The misses are on the study page.";
-        showMisses();
-        startBtn.textContent = "Run it again";
-        return;
-      }
-      spawn();
-    }, 1400);
+    const why = explain(trade);
+    if (ok) becauseEl.textContent = "Right. " + why;
+    else if (picked) becauseEl.textContent = "Wrong. You chose " + picked + ". " + why;
+    else becauseEl.textContent = "Missed. " + trade.name + " reached the ground. " + why;
+    continueBtn.hidden = false;
+    continueBtn.focus();
+  }
+
+  function continueRound() {
+    if (mode !== "resolve") return;
+    continueBtn.hidden = true;
+    clearTapes();
+    becauseEl.textContent = "";
+    if (lives <= 0) {
+      mode = "over";
+      overlay.hidden = false;
+      overlayTitle.textContent = "Out of lives";
+      overlayBody.textContent = "Score " + score + ". The misses are on the study page.";
+      showMisses();
+      startBtn.textContent = "Run it again";
+      return;
+    }
+    spawn();
   }
 
   function spawn() {
@@ -126,21 +136,24 @@
   function answer(mark, tape) {
     if (mode !== "play" || !trade) return;
     const ok = trade.outlook.indexOf(mark) !== -1;
+    const label = tape.querySelector(".mark").textContent + " " + tape.querySelector(".tape-word").textContent;
     if (ok) {
       tape.classList.add("hit-right");
       falling.classList.add("hit-right");
       score += 100;
       speed = Math.min(speed * 1.04, 110);
       paintHud();
-      finishRound(true);
+      finishRound(true, label);
       return;
     }
     tape.classList.add("hit-wrong");
     falling.classList.add("hit-wrong");
+    const rightTape = tapes.find((item) => trade.outlook.indexOf(item.dataset.mark) !== -1);
+    if (rightTape) rightTape.classList.add("hit-right");
     lives -= 1;
     misses.push(trade);
     paintHud();
-    finishRound(false);
+    finishRound(false, label);
   }
 
   function groundMiss() {
@@ -162,6 +175,7 @@
     deck = shuffle(TRADES);
     paintHud();
     overlay.hidden = true;
+    continueBtn.hidden = true;
     spawn();
   }
 
@@ -182,6 +196,13 @@
   });
 
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      if (mode === "resolve") {
+        event.preventDefault();
+        continueRound();
+        return;
+      }
+    }
     const index = "12345".indexOf(event.key);
     if (index !== -1) {
       event.preventDefault();
@@ -206,6 +227,7 @@
   });
 
   startBtn.addEventListener("click", startGame);
+  continueBtn.addEventListener("click", continueRound);
   paintHud();
   requestAnimationFrame(frame);
 })();

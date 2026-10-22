@@ -10,6 +10,7 @@
   const overlayTitle = document.getElementById("overlay-title");
   const overlayBody = document.getElementById("overlay-body");
   const startBtn = document.getElementById("start");
+  const continueBtn = document.getElementById("continue");
 
   let mode = "title";
   let lives = 3;
@@ -78,37 +79,45 @@
     overlayBody.after(list);
   }
 
-  function finishRound(ok) {
+  function finishRound(ok, timedOut) {
     mode = "resolve";
-    becauseEl.textContent = (ok ? "Yes. " : "No. ") + question.because;
+    const chosen = buttons.find((button) => button.dataset.picked === "true");
+    if (ok) becauseEl.textContent = "Right. " + question.because;
+    else if (timedOut) becauseEl.textContent = "Time ran out. " + question.because;
+    else becauseEl.textContent = "Wrong. You chose " + (chosen ? chosen.dataset.name : "another door") + ". " + question.because;
     buttons.forEach((button) => {
       button.disabled = true;
       if (button.dataset.name === question.correct) button.classList.add("hit-right");
       else if (!ok && button.dataset.picked === "true") button.classList.add("hit-wrong");
     });
-    window.setTimeout(() => {
-      if (lives <= 0) {
-        mode = "over";
-        overlay.hidden = false;
-        overlayTitle.textContent = "Out of lives";
-        overlayBody.textContent = "Score " + score + ". The doors you missed are below.";
-        showMisses();
-        startBtn.textContent = "Run it again";
-        clockEl.textContent = "";
-        return;
-      }
-      if (!deck.length) {
-        mode = "over";
-        overlay.hidden = false;
-        overlayTitle.textContent = "Cleared";
-        overlayBody.textContent = "Score " + score + ". You took every switch in the set.";
-        showMisses();
-        startBtn.textContent = "Run it again";
-        clockEl.textContent = "";
-        return;
-      }
-      spawn();
-    }, 1400);
+    continueBtn.hidden = false;
+    continueBtn.focus();
+  }
+
+  function continueRound() {
+    if (mode !== "resolve") return;
+    continueBtn.hidden = true;
+    becauseEl.textContent = "";
+    clockEl.textContent = "";
+    if (lives <= 0) {
+      mode = "over";
+      overlay.hidden = false;
+      overlayTitle.textContent = "Out of lives";
+      overlayBody.textContent = "Score " + score + ". The doors you missed are below.";
+      showMisses();
+      startBtn.textContent = "Run it again";
+      return;
+    }
+    if (!deck.length) {
+      mode = "over";
+      overlay.hidden = false;
+      overlayTitle.textContent = "Cleared";
+      overlayBody.textContent = "Score " + score + ". You took every switch in the set.";
+      showMisses();
+      startBtn.textContent = "Run it again";
+      return;
+    }
+    spawn();
   }
 
   function spawn() {
@@ -142,7 +151,7 @@
       misses.push(question);
     }
     paintHud();
-    finishRound(ok);
+    finishRound(ok, false);
   }
 
   function startGame() {
@@ -154,6 +163,7 @@
     deck = buildDeck();
     paintHud();
     overlay.hidden = true;
+    continueBtn.hidden = true;
     spawn();
   }
 
@@ -167,13 +177,18 @@
         lives -= 1;
         misses.push(question);
         paintHud();
-        finishRound(false);
+        finishRound(false, true);
       }
     }
     requestAnimationFrame(frame);
   }
 
   document.addEventListener("keydown", (event) => {
+    if ((event.key === "Enter" || event.key === " ") && mode === "resolve") {
+      event.preventDefault();
+      continueRound();
+      return;
+    }
     const index = "123".indexOf(event.key);
     if (index !== -1 && buttons[index]) {
       event.preventDefault();
@@ -198,6 +213,7 @@
   });
 
   startBtn.addEventListener("click", startGame);
+  continueBtn.addEventListener("click", continueRound);
   paintHud();
   requestAnimationFrame(frame);
 })();

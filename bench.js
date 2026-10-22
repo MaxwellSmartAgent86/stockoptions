@@ -10,6 +10,7 @@
   const overlayTitle = document.getElementById("overlay-title");
   const overlayBody = document.getElementById("overlay-body");
   const startBtn = document.getElementById("start");
+  const continueBtn = document.getElementById("continue");
 
   const ORDERS = [
     { id: "long-call", name: "Long call", parts: ["Long call"], note: "One long call. No shares." },
@@ -104,34 +105,41 @@
     });
   }
 
-  function finishRound(ok) {
+  function finishRound(ok, timedOut) {
     mode = "resolve";
     reveal();
     const listed = order.parts.join(" and ");
-    becauseEl.textContent = (ok ? "Yes. " : "No. The parts are " + listed + ". ") + order.note;
-    window.setTimeout(() => {
-      if (lives <= 0) {
-        mode = "over";
-        overlay.hidden = false;
-        overlayTitle.textContent = "Out of lives";
-        overlayBody.textContent = "Score " + score + ". The misses are on the study page.";
-        showMisses();
-        startBtn.textContent = "Run it again";
-        clockEl.textContent = "";
-        return;
-      }
-      if (!deck.length) {
-        mode = "over";
-        overlay.hidden = false;
-        overlayTitle.textContent = "Cleared";
-        overlayBody.textContent = "Score " + score + ". You stamped the set.";
-        showMisses();
-        startBtn.textContent = "Run it again";
-        clockEl.textContent = "";
-        return;
-      }
-      spawn();
-    }, 1600);
+    if (ok) becauseEl.textContent = "Right. " + order.note;
+    else if (timedOut) becauseEl.textContent = "Time ran out. The parts are " + listed + ". " + order.note;
+    else becauseEl.textContent = "Wrong. The parts are " + listed + ". " + order.note;
+    continueBtn.hidden = false;
+    continueBtn.focus();
+  }
+
+  function continueRound() {
+    if (mode !== "resolve") return;
+    continueBtn.hidden = true;
+    becauseEl.textContent = "";
+    clockEl.textContent = "";
+    if (lives <= 0) {
+      mode = "over";
+      overlay.hidden = false;
+      overlayTitle.textContent = "Out of lives";
+      overlayBody.textContent = "Score " + score + ". The misses are on the study page.";
+      showMisses();
+      startBtn.textContent = "Run it again";
+      return;
+    }
+    if (!deck.length) {
+      mode = "over";
+      overlay.hidden = false;
+      overlayTitle.textContent = "Cleared";
+      overlayBody.textContent = "Score " + score + ". You stamped the set.";
+      showMisses();
+      startBtn.textContent = "Run it again";
+      return;
+    }
+    spawn();
   }
 
   function spawn() {
@@ -167,13 +175,13 @@
     if (ok) {
       score += 100;
       paintHud();
-      finishRound(true);
+      finishRound(true, false);
       return;
     }
     lives -= 1;
     misses.push(order);
     paintHud();
-    finishRound(false);
+    finishRound(false, false);
   }
 
   function startGame() {
@@ -185,6 +193,7 @@
     deck = shuffle(ORDERS);
     paintHud();
     overlay.hidden = true;
+    continueBtn.hidden = true;
     spawn();
   }
 
@@ -198,7 +207,7 @@
         lives -= 1;
         misses.push(order);
         paintHud();
-        finishRound(false);
+        finishRound(false, true);
       }
     }
     requestAnimationFrame(frame);
@@ -211,9 +220,10 @@
       buttons[index].click();
       return;
     }
-    if (event.key === "Enter") {
+    if (event.key === "Enter" || (event.key === " " && mode === "resolve")) {
       event.preventDefault();
-      if (mode === "title" || mode === "over") startGame();
+      if (mode === "resolve") continueRound();
+      else if (mode === "title" || mode === "over") startGame();
       else stamp();
     }
   });
@@ -231,6 +241,7 @@
 
   stampBtn.addEventListener("click", stamp);
   startBtn.addEventListener("click", startGame);
+  continueBtn.addEventListener("click", continueRound);
   paintHud();
   requestAnimationFrame(frame);
 })();

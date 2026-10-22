@@ -207,10 +207,13 @@
       if (choice.dataset.name === item.correct) choice.classList.add("right");
       else if (choice === button) choice.classList.add("wrong");
     });
-    becauseEl.textContent = (ok ? "Yes. " : "No. ") + item.because;
+    becauseEl.textContent = ok
+      ? "Right. " + item.because
+      : "Wrong. You chose " + button.dataset.name + ". " + item.because;
     studyLink.href = "index.html#" + byName[item.correct];
     nextBtn.textContent = index === deck.length - 1 ? "Finish" : "Next";
     follow.hidden = false;
+    becauseEl.scrollIntoView({ block: "nearest" });
     nextBtn.focus();
   }
 
