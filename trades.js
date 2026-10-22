@@ -91,8 +91,9 @@ const TRADES = [
     where: "Zero to +1. Sideways is a win. A mild rise is still a win. You do not need a violent rally, and a violent rally is the part you have sold away.",
     why: "The shares can go nowhere and the call can still pay you. You give up the move above the strike. Someone else takes that.",
     how: "Coca-Cola at $70. Sell the 75 call for $2, which is $200 on one contract. If the stock finishes the month back at $70, the shares are unchanged and the call expires. You keep the $200. At $75 or above, the shares can be called away.",
-    best: "Use it when you own the shares and a quiet tape, or a small climb, is a fine outcome. Fear of a collapse, with the shares staying in the account, is a protective put. Open upside without owning shares is a long call.",
+    best: "Use it when you own the shares and a quiet tape, or a small climb, is a fine outcome. If you will sell a put again after the shares are called away, that cycle is the wheel. Fear of a collapse, with the shares staying in the account, is a protective put. Open upside without owning shares is a long call.",
     switches: [
+      { id: "wheel", when: "You will sell puts again once the shares are called away" },
       { id: "protective-put", when: "You need the shares insured" },
       { id: "long-call", when: "You want the upside left open" }
     ],
@@ -132,8 +133,9 @@ const TRADES = [
     where: "Neutral to mildly bullish. Zero, +1, and even a sharp rally can still finish with the put expired. The outcome that hurts is the fifth one, the −2 drop. A normal dip can still expire worthless.",
     why: "An investor uses it to get paid while waiting to buy shares. A trader uses it because four of the five outcomes can still pay. A rally you truly believe will be violent has a better tool.",
     how: "Stock at $62. The lesson’s usual range runs down toward $56 and up toward $68. Sell the 55 put, outside that band. Up a lot, sideways, up a little, or down to $56: the put can still expire and you keep the credit. The lesson does not name that credit. The loss is a real break down through 55.",
-    best: "Use it when you are willing to own the stock and you expect it to avoid a collapse. Shares you already hold are the covered call, the same shape. A rise you need to be violent is a long call.",
+    best: "Use it when you are willing to own the stock and you expect it to avoid a collapse. If you will sell calls after you are assigned, and sell this put again after the shares are called away, that cycle is the wheel. Shares you already hold are the covered call, the same shape. A rise you need to be violent is a long call.",
     switches: [
+      { id: "wheel", when: "You will keep selling calls after you are assigned" },
       { id: "covered-call", when: "You already own the shares" },
       { id: "long-call", when: "You want a violent rally" }
     ],
@@ -155,6 +157,49 @@ const TRADES = [
         { price: 62, label: "62" }
       ],
       note: "At expiration. The plateau is the credit. The slope is the stock you may be forced to buy as it falls."
+    }
+  },
+  {
+    id: "wheel",
+    name: "The wheel",
+    flow: "Credit, then credit",
+    shares: "None until the put assigns",
+    outlook: ["0", "+1"],
+    what: "Two credits, in order. Sell a cash-secured put. If it expires, sell it again. If you are assigned, you own the shares, and you sell a covered call against them. If the shares are called away, you are back in cash, and you sell the put again. Each phase is a credit. You are not paying a debit for a spread.",
+    also: [
+      { name: "Put then call", note: "The order. The put is how the shares are acquired. The call is how they are sold." },
+      { name: "Covered strangle", same: false, note: "Not the cycle. A covered strangle is the short put, the shares, and the short call open together. The wheel can look like that for a stretch. The strategy itself is one side at a time." },
+      { name: "Short strangle", same: false, note: "Not this. A short strangle sells a call and a put with no shares covering the call. The wheel’s call is covered, and the two sales are usually not on together." }
+    ],
+    where: "Zero to +1, the same band as the cash-secured put and the covered call. You are willing to own the shares, and willing to sell them at the call. You do not need a move outside the usual range. You are selling premium, so a calm tape is the one that pays. A −2 drop through the put is the loss. A +2 rally is the gain you sold away once the call is on.",
+    why: "A cash-secured put pays you once while you wait. A covered call pays you once while you hold. The wheel is the job of selling the next credit after the first one finishes. It improves on either trade used alone, because assignment is not the end of the plan, and a call-away is not the end of it either.",
+    how: "The lesson priced the two phases on different stocks, so this is the order, not one combined trade. Phase one is the cash-secured put: stock at $62, usual range about $56 to $68, sell the 55 put. The credit is not named. If that put assigns, you own the shares. Phase two is the covered call: the lesson’s version is Coca-Cola at $70, sell the 75 call for $2, which is $200 on the contract. Unchanged at $70, you keep the $200. At $75 or above, the shares can be called away, and the next order is the put again. Do not add the $2 to the unnamed put credit. They are two illustrations.",
+    best: "Use it when you want to be paid to buy the shares and then paid to sell them, and a quiet tape or a mild rise is enough. If you will not accept assignment, that is a long call, with the upside left open. If you will keep the shares through a violent tape, the call comes off and the insurance is a protective put.",
+    switches: [
+      { id: "cash-secured-put", when: "You will stop if the put assigns" },
+      { id: "covered-call", when: "You already own the shares and you will not sell a put after they are called away" },
+      { id: "long-call", when: "You want the upside left open" },
+      { id: "protective-put", when: "You will keep the shares and the next move may explode" }
+    ],
+    spec: [
+      ["Money flow", "Credit, then another credit"],
+      ["Shares required", "None until the put assigns"],
+      ["Outlook", "0 to +1"],
+      ["Phase one", "Stock at $62, sell the 55 put. Credit unnamed"],
+      ["Phase two", "Coke at $70, sell the 75 call for $2"],
+      ["If the call assigns", "Back to cash, sell the put again"],
+      ["Max gain", "The credit of the phase that is on. The two examples are not one number"],
+      ["Max loss", "A break down through the put, or the shares falling while the call is on"]
+    ],
+    chart: {
+      domain: [30, 90],
+      spot: 62,
+      points: [[30, -78], [55, 34], [90, 34]],
+      pins: [
+        { price: 55, label: "55" },
+        { price: 62, label: "62" }
+      ],
+      note: "One phase, at expiration. The cash-secured put and the covered call share this shape. The wheel is those two phases in order. The plateau is the credit of the phase that is on. The lesson priced that credit only for the Coke covered call, at $2. It did not price the put."
     }
   },
   {

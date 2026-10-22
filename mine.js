@@ -253,6 +253,12 @@
     while (peel((() => {
       const stock = pool.find((leg) => leg.kind === "stock" && leg.side === "long");
       const call = pool.find((leg) => leg.kind === "call" && leg.side === "short");
+      const put = pool.find((leg) => leg.kind === "put" && leg.side === "short");
+      return stock && call && put ? [stock, call, put] : null;
+    })())) {}
+    while (peel((() => {
+      const stock = pool.find((leg) => leg.kind === "stock" && leg.side === "long");
+      const call = pool.find((leg) => leg.kind === "call" && leg.side === "short");
       return stock && call ? [stock, call] : null;
     })())) {}
     while (peel((() => {
@@ -299,6 +305,7 @@
     const hasShares = stockLong.length > 0;
 
     if (hasShares && shortCalls.length && longPuts.length && !longCalls.length) return "collar";
+    if (hasShares && shortCalls.length && shortPuts.length && !longCalls.length && !longPuts.length) return "wheel";
     if (hasShares && shortCalls.length && !longCalls.length && !longPuts.length && !shortPuts.length) return "covered-call";
     if (hasShares && longPuts.length && !calls.length && !shortPuts.length) return "protective-put";
     if (!hasShares && longCalls.length === 1 && shortCalls.length === 1 && !puts.length) {
@@ -350,7 +357,7 @@
       return {
         name: "Collar",
         where: "Long stock, a short call, and a long put.",
-        why: "The lesson teaches those pieces apart. The short call against the shares is a covered call. The long put against the shares is a protective put. Together they are a collar, which is not one of the eleven.",
+        why: "The lesson teaches those pieces apart. The short call against the shares is a covered call. The long put against the shares is a protective put. Together they are a collar, which is not a trade on the study page.",
         switches: [
           { id: "covered-call", when: "You drop the put and keep the call you sold" },
           { id: "protective-put", when: "You drop the short call and keep the insurance" }
@@ -368,7 +375,7 @@
       };
     }
     return {
-      name: "Not one of the eleven",
+      name: "Not on the study page",
       where: "The legs do not match a structure on the study page.",
       why: "Read the legs below against What it is on each trade. A match needs the same sides, and for a spread the same relationship of strikes.",
       switches: []
@@ -377,6 +384,15 @@
 
   function profile(id, legs) {
     if (id === "shares") return sharesNote();
+    if (id === "wheel") {
+      const trade = byId.wheel;
+      const secured = legs.some((leg) => leg.cashSecured);
+      return Object.assign({}, trade, {
+        why: trade.why + (secured
+          ? " This feed has both phases on at once, and it marks the cash for the put as reserved."
+          : " This feed has both phases on at once. It does not say whether the cash for the put is reserved or only margin is posted. The put is still the short put in the cycle.")
+      });
+    }
     if (id === "cash-secured-put") {
       const trade = byId["cash-secured-put"];
       const secured = legs.some((leg) => leg.cashSecured);
@@ -425,7 +441,7 @@
         el("h3", "", "What the legs are"),
         el("p", "", trade.what || trade.where),
         el("h3", "", "Why this shape"),
-        el("p", "", "The feed does not record a motive. The structure the legs make is " + (trade.id ? "the " + trade.name.toLowerCase() : trade.name) + ". " + trade.why)
+        el("p", "", "The feed does not record a motive. The structure the legs make is " + (trade.id ? (trade.name.toLowerCase().indexOf("the ") === 0 ? trade.name.toLowerCase() : "the " + trade.name.toLowerCase()) : trade.name) + ". " + trade.why)
       );
       const alts = el("ul", "alts");
       (trade.switches || []).forEach((item) => {

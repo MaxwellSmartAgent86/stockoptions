@@ -25,6 +25,7 @@
     "long-put": "No shares. The gain stays open as price falls.",
     "covered-call": "You own the shares and sold a call.",
     "cash-secured-put": "You do not own the shares yet. Cash is reserved.",
+    "wheel": "Put until you are assigned, then a call until the shares are called away.",
     "protective-put": "You own the shares and bought a put. A straddle does not own the shares.",
     "bull-call": "Less cash than the long call. The gain caps at the short strike.",
     "bear-put": "Less cash than the long put. Both ends are capped.",

@@ -125,7 +125,19 @@
       prompt: "You were assigned on a cash-secured put, so the shares are yours now. You still expect sideways movement or a small climb, and you want to be paid for that.",
       correct: "Covered call",
       choices: ["Covered call", "Cash-secured put", "Protective put", "Bull call spread"],
-      because: "Covered call. It is the same shape as the cash-secured put once you own the shares. You sell a call against them. Another short put would be a second promise to buy."
+      because: "Covered call. It is the same shape as the cash-secured put once you own the shares. You sell a call against them. Another short put would be a second promise to buy. The wheel is that second sale only if you plan to keep cycling after the shares are called away."
+    },
+    {
+      prompt: "You do not own the shares. You are willing to buy them if the put assigns, and once you own them you will sell calls until they are called away, then sell the put again. Sideways, or a mild rise, is enough. You do not need a violent rally.",
+      correct: "The wheel",
+      choices: ["The wheel", "Cash-secured put", "Covered call", "Long call"],
+      because: "The wheel. Phase one is the cash-secured put. After assignment, phase two is the covered call. A cash-secured put alone stops when you own the shares. A covered call assumes you already own them. A long call leaves the upside open and does not take assignment."
+    },
+    {
+      prompt: "You have been running the wheel. You now need the upside left open, and you are no longer willing to have the shares called away.",
+      correct: "Long call",
+      choices: ["Long call", "The wheel", "Covered call", "Protective put"],
+      because: "Long call. The wheel’s call phase sells the move above the strike. A covered call does the same sale against shares you keep. A protective put keeps the shares and insures them. You asked for the gain left open."
     },
     {
       prompt: "You expect an explosion and you do not know the direction. You already own the shares, you will keep them, and you want their upside left open while the downside is insured.",
