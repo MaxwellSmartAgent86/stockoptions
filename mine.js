@@ -1680,20 +1680,48 @@
       });
     }
 
-    function paintMarked(name, priceText, x, nameY, priceY, fill) {
-      const w = Math.max(textWidth(name), priceText.length * 6.5);
-      const anchor = x - w / 2 < 1 ? "start" : (x + w / 2 > width - 1 ? "end" : "middle");
-      paintLabel(name, x, nameY, anchor, fill);
-      paintLabel(priceText, x, priceY, anchor, fill, "11");
-      addLine(x, nameY + 4, x, nameY + 14, fill, 1.5);
+    function paintChip(text, center, anchorX, top, fill, ink, tick) {
+      const w = Math.max(64, text.length * 6.7 + 16);
+      const h = 22;
+      let x = center - w / 2;
+      if (x < 2) x = 2;
+      if (x + w > width - 2) x = width - 2 - w;
+      svg.append(svgEl("rect", {
+        x: n1(x), y: n1(top), width: n1(w), height: n1(h),
+        rx: "4", ry: "4", fill: fill
+      }));
+      paintLabel(text, x + w / 2, top + 15, "middle", ink, "12");
+      const tickX = Math.max(x + 7, Math.min(x + w - 7, anchorX));
+      addLine(tickX, top + h, tickX, top + h + 12, tick, 1.75);
+    }
+    function paintLegend(mult, name, top, fill, ink, tick) {
+      const xL = X(spot - mult * move);
+      const xR = X(spot + mult * move);
+      const leftText = name + "-(" + money(spot - mult * move) + ")";
+      const rightText = name + "-(" + money(spot + mult * move) + ")";
+      const widthOf = (value) => Math.max(64, value.length * 6.7 + 16);
+      const lw = widthOf(leftText);
+      const rw = widthOf(rightText);
+      const gap = 8;
+      let cL = xL;
+      let cR = xR;
+      if (cL + lw / 2 + gap > cR - rw / 2) {
+        const mid = (xL + xR) / 2;
+        cL = mid - gap / 2 - lw / 2;
+        cR = mid + gap / 2 + rw / 2;
+      }
+      if (cL - lw / 2 < 2) cL = 2 + lw / 2;
+      if (cR + rw / 2 > width - 2) cR = width - 2 - rw / 2;
+      if (cL + lw / 2 + gap > cR - rw / 2) {
+        cL = 2 + lw / 2;
+        cR = width - 2 - rw / 2;
+      }
+      paintChip(leftText, cL, xL, top, fill, ink, tick);
+      paintChip(rightText, cR, xR, top, fill, ink, tick);
     }
     if (move) {
-      [[2, "2 SD", 46, 14, "var(--color-sd-2-ink)"], [1, "1 SD", 108, 76, "var(--color-sd-1-ink)"]].forEach((pair) => {
-        const xL = X(spot - pair[0] * move);
-        const xR = X(spot + pair[0] * move);
-        paintMarked(pair[1], "(" + money(spot - pair[0] * move) + ")", xL, pair[2], pair[3], pair[4]);
-        paintMarked(pair[1], "(" + money(spot + pair[0] * move) + ")", xR, pair[2], pair[3], pair[4]);
-      });
+      paintLegend(2, "2SD", 8, "var(--color-sd-2)", "var(--color-sd-2-ink)", "var(--color-sd-2-ink)");
+      paintLegend(1, "1SD", 62, "var(--color-sd-1)", "var(--color-paper)", "var(--color-sd-1)");
     }
     const spotX = X(spot);
     const priceY = move ? 170 : 44;
