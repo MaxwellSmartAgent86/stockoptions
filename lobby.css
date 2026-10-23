@@ -435,7 +435,8 @@ a.term-btn {
   scroll-margin-top: 0.5rem;
 }
 
-.fill-read:empty {
+.fill-read:empty,
+.sd-where:empty {
   display: none;
 }
 

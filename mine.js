@@ -528,6 +528,23 @@
   const quoteCache = {};
   let guessToken = 0;
 
+  function premiumOf(leg) {
+    const trade = leg.trade != null ? leg.trade : (leg.price !== "" && leg.price != null ? Number(leg.price) : null);
+    if (trade == null || !Number.isFinite(trade)) return null;
+    return Math.abs(trade);
+  }
+
+  function outcomeNote(legs) {
+    const options = legs.filter((leg) => (leg.kind === "call" || leg.kind === "put") && leg.strike != null);
+    if (!options.length) return "";
+    const stock = legs.filter((leg) => leg.kind === "stock");
+    const priced = options.every((leg) => premiumOf(leg) != null) && stock.every((leg) => premiumOf(leg) != null);
+    const line = priced
+      ? "Green is a gain at expiration. Red is a loss. The color changes at the breakeven from the trade price in the file."
+      : "Green is a gain at expiration. Red is a loss. The file has no trade price, so the color changes at the strike.";
+    return stock.length && !priced ? line + " The shares are not in that color." : line;
+  }
+
   function money(value) {
     if (value == null || !Number.isFinite(value)) return "";
     return "$" + value.toFixed(2);
@@ -1367,8 +1384,49 @@
       seen[key] = true;
       options.push(leg);
     });
+    const book = legs.filter((leg) => leg.kind === "stock" || ((leg.kind === "call" || leg.kind === "put") && leg.strike != null));
+    const priced = book.length > 0 && book.every((leg) => premiumOf(leg) != null);
+    let longQty = 0;
+    let shortQty = 0;
+    options.forEach((leg) => {
+      if (leg.side === "short") shortQty += leg.qty || 1;
+      else longQty += leg.qty || 1;
+    });
+    const bias = shortQty > 0 && longQty === 0 ? "credit" : (longQty > 0 && shortQty === 0 ? "debit" : "mixed");
+    function valueAt(price) {
+      let total = 0;
+      book.forEach((leg) => {
+        const qty = leg.qty || 1;
+        const sign = leg.side === "short" ? -1 : 1;
+        if (leg.kind === "stock") {
+          if (!priced) return;
+          total += sign * (price - premiumOf(leg)) * qty;
+          return;
+        }
+        const intrinsic = leg.kind === "call" ? Math.max(0, price - leg.strike) : Math.max(0, leg.strike - price);
+        total += sign * (intrinsic - (priced ? premiumOf(leg) : 0)) * qty;
+      });
+      if (!priced && Math.abs(total) < 1e-9) {
+        if (bias === "credit") return 1;
+        if (bias === "debit") return -1;
+      }
+      return total;
+    }
     const prices = [spot].concat(options.map((leg) => leg.strike));
     if (move) prices.push(spot - 2 * move, spot + 2 * move);
+    if (options.length) {
+      const strikes = options.map((leg) => leg.strike).sort((a, b) => a - b);
+      const span = Math.max(strikes[strikes.length - 1] - strikes[0], spot * 0.02, 1);
+      const knots = [strikes[0] - span, strikes[strikes.length - 1] + span].concat(strikes);
+      knots.sort((a, b) => a - b);
+      for (let i = 0; i < knots.length - 1; i++) {
+        const va = valueAt(knots[i]);
+        const vb = valueAt(knots[i + 1]);
+        if ((va > 0 && vb < 0) || (va < 0 && vb > 0)) {
+          prices.push(knots[i] + (0 - va) / (vb - va) * (knots[i + 1] - knots[i]));
+        }
+      }
+    }
     let lo = Math.min.apply(null, prices);
     let hi = Math.max.apply(null, prices);
     if (!(hi > lo)) {
@@ -1412,6 +1470,9 @@
     const bandH = 22;
     const bandTop = axisY - bandH / 2;
     const bandBottom = axisY + bandH / 2;
+    const stripH = 9;
+    const stripTop = bandBottom + 3;
+    const stripBottom = stripTop + stripH;
     const labelPitch = 30;
     let inset = null;
     if (zoom.length) {
@@ -1429,7 +1490,7 @@
         lockX: strikeCount[mark.leg.strike] > 1
       }));
       const fit = fitCallouts(zoomMarks, plotL, plotR);
-      inset = { lo: zLo, hi: zHi, X: ZX, fit: fit, h: bandH + 16 + fit.rows * labelPitch };
+      inset = { lo: zLo, hi: zHi, X: ZX, fit: fit, h: bandH + 3 + stripH + 16 + fit.rows * labelPitch };
     }
     let stemL = plotL;
     let stemR = plotR;
@@ -1449,7 +1510,7 @@
     const leftFit = leftSingles.length && stemL - 8 > plotL + 24 ? fitCallouts(leftSingles, plotL, stemL - 8) : null;
     const rightFit = rightSingles.length && stemR + 8 < plotR - 24 ? fitCallouts(rightSingles, stemR + 8, plotR) : null;
     const singleFit = !inset && singles.length ? fitCallouts(singles, plotL, plotR) : null;
-    let cursor = bandBottom + 4;
+    let cursor = stripBottom + 4;
     let funnelTop = 0;
     let funnelNeck = 0;
     let funnelBottom = 0;
@@ -1458,8 +1519,8 @@
     let calloutTop = 0;
     if (inset && (leftFit || rightFit)) {
       const besideRows = Math.max(leftFit ? leftFit.rows : 0, rightFit ? rightFit.rows : 0);
-      calloutTop = bandBottom + 8;
-      funnelTop = bandBottom + 4;
+      calloutTop = stripBottom + 8;
+      funnelTop = stripBottom + 4;
       funnelNeck = calloutTop + besideRows * labelPitch + 6;
       funnelBottom = funnelNeck + 22;
       insetTop = funnelBottom;
@@ -1478,9 +1539,10 @@
       cursor = calloutTop + singleFit.rows * labelPitch;
     }
     const height = Math.max(cursor + 12, bandBottom + 20);
-    const aria = move
-      ? "Price band. The deeper blue is one standard deviation, the usual range. The pale blue is two standard deviations. A filled dot is long and an open dot is short. Green is a call and red is a put. Strikes that land on the same spot are enlarged below."
-      : "Price band. A filled dot is long and an open dot is short. Green is a call and red is a put. Strikes that land on the same spot are enlarged below.";
+    const aria = (move
+      ? "Price band. The deeper blue is one standard deviation, the usual range. The pale blue is two standard deviations. "
+      : "Price band. ")
+      + "Green is a gain at expiration. Red is a loss. A filled dot is long and an open dot is short. Strikes that land on the same spot are enlarged below.";
     const svg = svgEl("svg", {
       viewBox: "0 0 " + width + " " + height,
       class: "band-svg",
@@ -1535,19 +1597,46 @@
         addRect(Math.min(x1, x2) - 0.4, y, Math.abs(x2 - x1) + 0.8, h, fill);
       }
     }
+    function paintOutcome(xOf, y, h, zoneLo, zoneHi) {
+      const cuts = [zoneLo, zoneHi];
+      book.forEach((leg) => {
+        if (leg.strike != null && leg.strike > zoneLo && leg.strike < zoneHi) cuts.push(leg.strike);
+      });
+      cuts.sort((a, b) => a - b);
+      const points = [];
+      cuts.forEach((price) => {
+        if (!points.length || price - points[points.length - 1] > 1e-4) points.push(price);
+      });
+      for (let i = 0; i < points.length - 1; i++) {
+        const a = points[i];
+        const b = points[i + 1];
+        const va = valueAt(a);
+        const vb = valueAt(b);
+        const pieces = [];
+        if ((va > 0 && vb < 0) || (va < 0 && vb > 0)) {
+          const zero = a + (0 - va) / (vb - va) * (b - a);
+          pieces.push([a, zero, va], [zero, b, vb]);
+        } else pieces.push([a, b, valueAt((a + b) / 2)]);
+        pieces.forEach((piece) => {
+          if (!(piece[2] > 0) && !(piece[2] < 0)) return;
+          const x1 = xOf(piece[0]);
+          const x2 = xOf(piece[1]);
+          addRect(Math.min(x1, x2), y, Math.abs(x2 - x1), h, piece[2] > 0 ? "var(--color-gain)" : "var(--color-loss)");
+        });
+      }
+    }
     function strikeDot(x, y, leg) {
-      const color = leg.kind === "call" ? "var(--color-gain)" : "var(--color-loss)";
       svg.append(svgEl("circle", {
         cx: n1(x), cy: n1(y), r: "8.5", fill: "var(--color-paper)"
       }));
       if (leg.side === "short") {
         svg.append(svgEl("circle", {
           cx: n1(x), cy: n1(y), r: "5.5",
-          fill: "var(--color-paper)", stroke: color, "stroke-width": "2.25"
+          fill: "var(--color-paper)", stroke: "var(--color-ink)", "stroke-width": "2.25"
         }));
       } else {
         svg.append(svgEl("circle", {
-          cx: n1(x), cy: n1(y), r: "6", fill: color
+          cx: n1(x), cy: n1(y), r: "6", fill: "var(--color-ink)"
         }));
       }
     }
@@ -1588,8 +1677,9 @@
     const priceY = move ? 84 : 22;
     paintLabel(money(spot), spotX, priceY, spotX < 56 ? "start" : (spotX > width - 56 ? "end" : "middle"), "var(--color-ink)");
     paintZones(X, bandTop, bandH, lo, hi);
+    paintOutcome(X, stripTop, stripH, lo, hi);
     addLine(plotL, axisY, plotR, axisY, "var(--color-ink)", 1.25);
-    addLine(spotX, priceY + 4, spotX, bandBottom + 5, "var(--color-ink)", 2.2);
+    addLine(spotX, priceY + 4, spotX, stripBottom, "var(--color-ink)", 2.2);
     marks.forEach((mark) => strikeDot(mark.x, axisY, mark.leg));
 
     if (inset) {
@@ -1603,9 +1693,10 @@
         "stroke-width": "1"
       }));
       paintZones(inset.X, insetTop, bandH, inset.lo, inset.hi);
+      paintOutcome(inset.X, insetTop + bandH + 3, stripH, inset.lo, inset.hi);
       addLine(plotL, insetTop + bandH / 2, plotR, insetTop + bandH / 2, "var(--color-ink)", 1.25);
       inset.fit.items.forEach((item) => strikeDot(item.x, insetTop + bandH / 2, item.leg));
-      paintCallouts(inset.fit, insetTop + bandH + 4, insetTop + bandH / 2 + 10);
+      paintCallouts(inset.fit, insetTop + bandH + stripH + 7, insetTop + bandH / 2 + 10);
     }
     if (leftFit) paintCallouts(leftFit, calloutTop, axisY + 12);
     if (rightFit) paintCallouts(rightFit, calloutTop, axisY + 12);
@@ -1625,6 +1716,7 @@
     } else slot.read.textContent = fillReading(options, facts.spot, facts.loaded ? "the last close" : "the file’s price");
     slot.sd1.textContent = sdWhere(1, facts);
     slot.sd2.textContent = sdWhere(2, facts);
+    if (slot.outcome) slot.outcome.textContent = outcomeNote(slot.group.legs);
     drawBand(slot.band, facts, slot.group.legs);
   }
 
@@ -1768,6 +1860,7 @@
       slotFig.append(payoff, slotCaption);
       const figure = el("figure", "proof-mini");
       const band = el("div", "band");
+      const outcome = el("p", "sd-where");
       const read = el("p", "fill-read");
       const terms = el("dl", "terms");
       const sd1 = el("span");
@@ -1791,8 +1884,8 @@
       }
       const sd1Line = whereLine("sd1", "One standard deviation is the lesson’s usual range. ", sd1);
       const sd2Line = whereLine("sd2", "Two standard deviations are the wider band. ", sd2);
-      figure.append(band, read, sd1Line, sd2Line, terms);
-      const slot = { guess: guess, group: group, id: id, prefix: prefix, band: band, sd1: sd1, sd2: sd2, read: read };
+      figure.append(band, outcome, read, sd1Line, sd2Line, terms);
+      const slot = { guess: guess, group: group, id: id, prefix: prefix, band: band, outcome: outcome, sd1: sd1, sd2: sd2, read: read };
       paintFacts(slot, undefined);
       article.append(title, el("p", "facts", factsLine(group)), slotFig, legs, el("h3", "", "What the legs are"), what, el("h3", "", "The goal"), goal);
       if (trade.id && trade.where) article.append(el("h3", "", "Where the lesson uses it"), where);
