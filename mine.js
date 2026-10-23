@@ -6,6 +6,16 @@
   const statusEl = document.getElementById("status");
   const results = document.getElementById("results");
   const sampleBtn = document.getElementById("sample");
+  const sorts = document.getElementById("sorts");
+  const sortNote = document.getElementById("sort-note");
+  const sortButtons = {
+    opened: document.getElementById("sort-opened"),
+    expires: document.getElementById("sort-expires"),
+    result: document.getElementById("sort-result")
+  };
+  let cards = [];
+  let sortMode = "";
+  let sortDir = 1;
 
   const byId = {};
   TRADES.forEach((trade) => {
@@ -521,6 +531,55 @@
   function money(value) {
     if (value == null || !Number.isFinite(value)) return "";
     return "$" + value.toFixed(2);
+  }
+
+  function signedMoney(value) {
+    const abs = Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (value < 0) return "−$" + abs;
+    if (value > 0) return "+$" + abs;
+    return "$" + abs;
+  }
+
+  function contractMult(leg) {
+    return leg.kind === "call" || leg.kind === "put" ? 100 : 1;
+  }
+
+  function legResult(leg) {
+    if (leg.plOpen != null && Number.isFinite(leg.plOpen)) return leg.plOpen;
+    const trade = leg.trade != null ? leg.trade : (leg.price !== "" && leg.price != null ? Number(leg.price) : null);
+    if (trade == null || !Number.isFinite(trade) || leg.bid == null || leg.ask == null) return null;
+    const mid = (leg.bid + leg.ask) / 2;
+    const sign = leg.side === "short" ? -1 : 1;
+    return (mid - Math.abs(trade)) * leg.qty * contractMult(leg) * sign;
+  }
+
+  function groupResult(group) {
+    if (!group.legs.length) return null;
+    let sum = 0;
+    for (let i = 0; i < group.legs.length; i++) {
+      const part = legResult(group.legs[i]);
+      if (part == null) return null;
+      sum += part;
+    }
+    return sum;
+  }
+
+  function openedValue(group) {
+    if (group.tape && group.tape.daysOpen != null) return -group.tape.daysOpen;
+    const iso = whenISO(group.when);
+    const date = iso ? parseISO(iso) : null;
+    return date ? date.getTime() : null;
+  }
+
+  function resultNote(groups) {
+    const legs = [];
+    groups.forEach((group) => group.legs.forEach((leg) => legs.push(leg)));
+    const hasOpen = legs.some((leg) => leg.plOpen != null);
+    const hasMid = legs.some((leg) => leg.bid != null && leg.ask != null && legResult(leg) != null && leg.plOpen == null);
+    if (hasOpen && hasMid) return "Result uses P/L Open from the file when that column is filled. Otherwise it is the bid/ask middle against the trade price. An option uses 100 shares a contract. A card the file cannot price stays at the end.";
+    if (hasOpen) return "Result is P/L Open from the file. A card the file cannot price stays at the end.";
+    if (hasMid) return "Result is the bid/ask middle against the trade price in the file. An option uses 100 shares a contract. The file has no P/L Open column. A card the file cannot price stays at the end.";
+    return "This file has no P/L Open column and no bid and ask, so there is no result to sort.";
   }
 
   function parseISO(iso) {
@@ -1367,13 +1426,77 @@
     });
   }
 
+  function factsLine(group) {
+    const parts = [];
+    if (group.tape && group.tape.daysOpen != null) {
+      const days = group.tape.daysOpen;
+      parts.push("Opened " + days + (days === 1 ? " day" : " days") + " ago");
+    } else {
+      const iso = whenISO(group.when);
+      if (iso) parts.push("Opened " + prettyISO(iso));
+    }
+    const dates = expirationDates(group.legs);
+    if (dates.length === 1) parts.push("Expires " + prettyISO(dates[0]));
+    else if (dates.length > 1) parts.push("Expires " + dates.map(prettyISO).join(", then "));
+    const result = groupResult(group);
+    parts.push(result == null ? "No result in the file" : "Result " + signedMoney(result));
+    return parts.join(" · ");
+  }
+
+  function orderedCards() {
+    const list = cards.slice();
+    if (!sortMode) return list.sort((a, b) => a.index - b.index);
+    const sense = (sortMode === "expires" ? 1 : -1) * sortDir;
+    list.sort((a, b) => {
+      const av = a[sortMode];
+      const bv = b[sortMode];
+      if (av == null && bv == null) return a.index - b.index;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (av < bv) return -sense;
+      if (av > bv) return sense;
+      return a.index - b.index;
+    });
+    return list;
+  }
+
+  function paintSort() {
+    Object.keys(sortButtons).forEach((mode) => {
+      const button = sortButtons[mode];
+      const on = sortMode === mode;
+      button.setAttribute("aria-pressed", on ? "true" : "false");
+      if (!on) button.textContent = mode === "opened" ? "Opened" : mode === "expires" ? "Expires" : "Result";
+      else if (mode === "opened") button.textContent = sortDir === -1 ? "Opened, oldest first" : "Opened, newest first";
+      else if (mode === "expires") button.textContent = sortDir === -1 ? "Expires, latest first" : "Expires, soonest first";
+      else button.textContent = sortDir === -1 ? "Result, smallest first" : "Result, largest first";
+    });
+  }
+
+  function applySort() {
+    sorts.hidden = cards.length < 2;
+    paintSort();
+    orderedCards().forEach((card) => results.append(card.article));
+  }
+
+  function chooseSort(mode) {
+    if (sortMode === mode) sortDir = -sortDir;
+    else {
+      sortMode = mode;
+      sortDir = 1;
+    }
+    applySort();
+  }
+
   function render(groups) {
     const token = ++guessToken;
     results.replaceChildren();
+    cards = [];
     if (!groups.length) {
+      sorts.hidden = true;
       statusEl.textContent = "That paste had no positions to read.";
       return;
     }
+    sortNote.textContent = resultNote(groups);
     statusEl.textContent = groups.length + (groups.length === 1 ? " position." : " positions.");
     const slots = [];
     groups.forEach((group, index) => {
@@ -1445,9 +1568,7 @@
       figure.append(band, read, sd1Line, sd2Line, terms);
       const slot = { guess: guess, group: group, id: id, prefix: prefix, band: band, sd1: sd1, sd2: sd2, read: read };
       paintFacts(slot, undefined);
-      article.append(title);
-      if (group.when) article.append(el("p", "note", group.when));
-      article.append(slotFig, legs, el("h3", "", "What the legs are"), what, el("h3", "", "The goal"), goal);
+      article.append(title, el("p", "facts", factsLine(group)), slotFig, legs, el("h3", "", "What the legs are"), what, el("h3", "", "The goal"), goal);
       if (trade.id && trade.where) article.append(el("h3", "", "Where the lesson uses it"), where);
       article.append(
         el("h3", "", "Why this was chosen"),
@@ -1469,8 +1590,16 @@
       });
       article.append(el("h3", "", "Other strategies that could be used"), alts.childElementCount ? alts : el("p", "", "The lesson does not name another strategy for this shape."));
       results.append(article);
+      cards.push({
+        article: article,
+        index: index,
+        opened: openedValue(group),
+        expires: expirationDates(group.legs)[0] || null,
+        result: groupResult(group)
+      });
       slots.push(slot);
     });
+    applySort();
     fillGuesses(slots, token);
   }
 
@@ -1669,11 +1798,17 @@
     ].join("\n");
   }
 
+  function clearResults() {
+    results.replaceChildren();
+    cards = [];
+    sorts.hidden = true;
+  }
+
   function readMail(raw) {
     const messages = messagesOf(raw);
     const fresh = messages.filter((message) => recentEnough(messageDate(message)));
     if (!fresh.length) {
-      results.replaceChildren();
+      clearResults();
       statusEl.textContent = messages.length
         ? "Those messages are older than 10 days."
         : "Choose the positions file, or paste a saved message.";
@@ -1693,7 +1828,7 @@
       });
     });
     if (!groups.length) {
-      results.replaceChildren();
+      clearResults();
       statusEl.textContent = "Those messages did not include a stock or option fill this page could read. Include the buy or sell, the symbol, and for an option the strike and whether it is a call or a put.";
       return;
     }
@@ -1852,7 +1987,10 @@
     const priceAt = at("trade price");
     const typeAt = at("type");
     const dteAt = header.findIndex((name) => name === "dte" || name === "days to expiration");
-    const openAt = header.findIndex((name) => name.indexOf("opn") !== -1);
+    const openAt = header.findIndex((name) => name.indexOf("opn") !== -1 && name.indexOf("p/l") === -1);
+    const bidAt = header.findIndex((name) => name === "bid (sell)" || name === "bid");
+    const askAt = header.findIndex((name) => name === "ask (buy)" || name === "ask");
+    const plAt = header.findIndex((name) => name === "p/l open");
     const buckets = [];
     const index = {};
     table.slice(1).forEach((cells) => {
@@ -1877,6 +2015,10 @@
         strike: strike != null ? strike : (occ ? occ.strike : null),
         expiration: (occ && occ.expiration) || (expAt >= 0 ? dateOf(text(cells[expAt])) : ""),
         price: priceAt >= 0 && csvNumber(cells[priceAt]) != null ? String(Math.abs(csvNumber(cells[priceAt]))) : "",
+        trade: priceAt >= 0 ? csvNumber(cells[priceAt]) : null,
+        bid: bidAt >= 0 ? csvNumber(cells[bidAt]) : null,
+        ask: askAt >= 0 ? csvNumber(cells[askAt]) : null,
+        plOpen: plAt >= 0 ? csvNumber(cells[plAt]) : null,
         dte: dteAt >= 0 ? csvNumber(cells[dteAt]) : null,
         symbol: symbol
       };
@@ -1914,14 +2056,14 @@
     const trimmed = stripAccountColumn(raw).trim();
     if (trimmed !== raw.trim()) pasteInput.value = trimmed;
     if (!trimmed) {
-      results.replaceChildren();
+      clearResults();
       statusEl.textContent = "Choose the positions file, or paste a saved message.";
       return;
     }
     if (looksLikeCsv(trimmed)) {
       const groups = readCsv(trimmed);
       if (!groups || !groups.length) {
-        results.replaceChildren();
+        clearResults();
         statusEl.textContent = groups ? "That file had no option rows to read." : "That file has the positions headers, but the columns this page needs are missing.";
         return;
       }
@@ -2049,6 +2191,10 @@
     if (!files.length) return;
     event.preventDefault();
     ingestFiles(files);
+  });
+
+  Object.keys(sortButtons).forEach((mode) => {
+    sortButtons[mode].addEventListener("click", () => chooseSort(mode));
   });
 
   sampleBtn.addEventListener("click", () => {

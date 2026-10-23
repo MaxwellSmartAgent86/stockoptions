@@ -241,6 +241,26 @@ label {
   max-width: 62ch;
 }
 
+.sorts {
+  margin-top: var(--space-lg);
+}
+
+.sorts[hidden] {
+  display: none;
+}
+
+.next[aria-pressed="true"] {
+  background: var(--color-paper-2);
+}
+
+.facts {
+  margin: var(--space-xs) 0 0;
+  max-width: 62ch;
+  font-family: var(--font-figure);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
 .position {
   margin-top: var(--space-xl);
   max-width: 62ch;
