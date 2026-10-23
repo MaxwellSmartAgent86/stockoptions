@@ -1509,7 +1509,8 @@
         lockX: strikeCount[mark.leg.strike] > 1
       }));
       const fit = fitCallouts(zoomMarks, plotL, plotR);
-      inset = { lo: zLo, hi: zHi, X: ZX, fit: fit, h: bandH + 3 + stripH + 16 + fit.rows * labelPitch };
+      const keyH = move ? 108 : 40;
+      inset = { lo: zLo, hi: zHi, X: ZX, fit: fit, keyH: keyH, h: keyH + bandH + 3 + stripH + 16 + fit.rows * labelPitch };
     }
     let stemL = plotL;
     let stemR = plotR;
@@ -1743,11 +1744,36 @@
         stroke: "var(--color-rule)",
         "stroke-width": "1"
       }));
-      paintZones(inset.X, insetTop, bandH, inset.lo, inset.hi);
-      paintOutcome(inset.X, insetTop + bandH + 3, stripH, inset.lo, inset.hi);
-      addLine(plotL, insetTop + bandH / 2, plotR, insetTop + bandH / 2, "var(--color-ink)", 1.25);
-      inset.fit.items.forEach((item) => strikeDot(item.x, insetTop + bandH / 2, item.leg));
-      paintCallouts(inset.fit, insetTop + bandH + stripH + 7, insetTop + bandH / 2 + 10);
+      const bandY = insetTop + inset.keyH;
+      if (move) {
+        paintLabel("2 SD", plotL, insetTop + 20, "start", "var(--color-sd-2-ink)");
+        paintLabel("(" + money(spot - 2 * move) + ")", plotL + 52, insetTop + 20, "start", "var(--color-sd-2-ink)", "11");
+        paintLabel("(" + money(spot + 2 * move) + ")", plotR, insetTop + 20, "end", "var(--color-sd-2-ink)", "11");
+        paintLabel("1 SD", plotL, insetTop + 54, "start", "var(--color-sd-1-ink)");
+        paintLabel("(" + money(spot - move) + ")", plotL + 52, insetTop + 54, "start", "var(--color-sd-1-ink)", "11");
+        paintLabel("(" + money(spot + move) + ")", plotR, insetTop + 54, "end", "var(--color-sd-1-ink)", "11");
+      }
+      const capY = insetTop + (move ? 88 : 18);
+      paintLabel("(Current Price)", plotL, capY, "start", "var(--color-muted)", "11", "IBM Plex Sans, sans-serif");
+      paintLabel(money(spot), plotR, capY, "end", "var(--color-ink)");
+      paintZones(inset.X, bandY, bandH, inset.lo, inset.hi);
+      paintOutcome(inset.X, bandY + bandH + 3, stripH, inset.lo, inset.hi);
+      addLine(plotL, bandY + bandH / 2, plotR, bandY + bandH / 2, "var(--color-ink)", 1.25);
+      if (move) {
+        [[2, "var(--color-sd-2-ink)"], [1, "var(--color-sd-1-ink)"]].forEach((pair) => {
+          [spot - pair[0] * move, spot + pair[0] * move].forEach((price) => {
+            if (price <= inset.lo || price >= inset.hi) return;
+            const x = inset.X(price);
+            addLine(x, bandY - 4, x, bandY + bandH, pair[1], 1.5);
+          });
+        });
+      }
+      if (spot > inset.lo && spot < inset.hi) {
+        const x = inset.X(spot);
+        addLine(x, capY + 4, x, bandY + bandH + 3 + stripH, "var(--color-ink)", 2.2);
+      }
+      inset.fit.items.forEach((item) => strikeDot(item.x, bandY + bandH / 2, item.leg));
+      paintCallouts(inset.fit, bandY + bandH + stripH + 7, bandY + bandH / 2 + 10);
     }
     if (leftFit) paintCallouts(leftFit, calloutTop, axisY + 12);
     if (rightFit) paintCallouts(rightFit, calloutTop, axisY + 12);
