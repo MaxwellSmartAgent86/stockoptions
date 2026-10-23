@@ -19,18 +19,15 @@
   <main class="sheet">
     <p class="wordmark">Five answers</p>
     <h1 id="mine-title">My trades</h1>
-    <p class="lede">Pull Tastytrade mail from the last 10 days. Fill messages and assignment notices are kept, and everything else is left out. Each order is named as one of the trades on the study page, with the lesson’s reason for that shape and the trade it would switch to if the setup changed. The mail shows the fills. It does not show the motive.</p>
+    <p class="lede">Drop the positions file from the broker. Each set of legs is named as one of the trades on the study page, with the lesson’s reason for that shape. Under that is a best guess for why the shape was opened, from the price, the trend into the open, and how much the stock has been moving. The file does not record the motive. The guess is not a recommendation to place a trade.</p>
     <form id="pull" class="pull">
-      <h2>Tastytrade mail</h2>
-      <p class="note">Mail on this Mac is read for the last 10 days. Only Tastytrade fill mail and assignment notices are used. The messages stay on this Mac.</p>
-      <div class="actions">
-        <button type="button" class="next" id="pull-mail">Pull the last 10 days</button>
-      </div>
-      <label for="paste">Or paste a saved Tastytrade message</label>
+      <h2>Positions file</h2>
+      <p class="note">Use the downloaded positions file, or a saved Tastytrade fill. An account number in the file is left out.</p>
+      <label for="paste">Or paste the file</label>
       <textarea class="paste" id="paste" name="paste" spellcheck="false"></textarea>
-      <input class="file" id="files" type="file" accept=".eml,.txt,.html,message/rfc822,text/plain" multiple>
+      <input class="file" id="files" type="file" accept=".csv,.eml,.txt,.html,text/csv,message/rfc822,text/plain" multiple>
       <div class="actions">
-        <button type="button" class="next" id="choose">Choose email files</button>
+        <button type="button" class="next" id="choose">Choose a file</button>
         <button type="submit" class="next" id="read">Read the trades</button>
         <button type="button" class="next" id="sample">Use the lesson sample</button>
       </div>
