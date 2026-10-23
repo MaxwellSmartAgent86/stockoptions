@@ -1680,9 +1680,12 @@
       });
     }
 
+    function chipWidth(text) {
+      return text.length * 10.2 + 8;
+    }
     function paintChip(text, center, anchorX, top, fill, ink, tick) {
-      const w = Math.max(64, text.length * 6.7 + 16);
-      const h = 22;
+      const w = chipWidth(text);
+      const h = 26;
       let x = center - w / 2;
       if (x < 2) x = 2;
       if (x + w > width - 2) x = width - 2 - w;
@@ -1690,7 +1693,7 @@
         x: n1(x), y: n1(top), width: n1(w), height: n1(h),
         rx: "4", ry: "4", fill: fill
       }));
-      paintLabel(text, x + w / 2, top + 15, "middle", ink, "12");
+      paintLabel(text, x + w / 2, top + 18, "middle", ink, "16");
       const tickX = Math.max(x + 7, Math.min(x + w - 7, anchorX));
       addLine(tickX, top + h, tickX, top + h + 12, tick, 1.75);
     }
@@ -1699,7 +1702,7 @@
       const xR = X(spot + mult * move);
       const leftText = name + "-(" + money(spot - mult * move) + ")";
       const rightText = name + "-(" + money(spot + mult * move) + ")";
-      const widthOf = (value) => Math.max(64, value.length * 6.7 + 16);
+      const widthOf = chipWidth;
       const lw = widthOf(leftText);
       const rw = widthOf(rightText);
       const gap = 8;
@@ -1720,8 +1723,8 @@
       paintChip(rightText, cR, xR, top, fill, ink, tick);
     }
     if (move) {
-      paintLegend(2, "2SD", 8, "var(--color-sd-2)", "var(--color-sd-2-ink)", "var(--color-sd-2-ink)");
-      paintLegend(1, "1SD", 62, "var(--color-sd-1)", "var(--color-paper)", "var(--color-sd-1)");
+      paintLegend(2, "2SD", 4, "var(--color-sd-2)", "var(--color-sd-2-ink)", "var(--color-sd-2-ink)");
+      paintLegend(1, "1SD", 56, "var(--color-sd-1)", "var(--color-paper)", "var(--color-sd-1)");
     }
     const spotX = X(spot);
     const priceY = move ? 170 : 44;
