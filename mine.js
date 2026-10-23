@@ -880,20 +880,78 @@
     "iron-condor": true, "straddle": true, "strangle": true, "calendar": true
   };
 
-  const TERM_PATTERN = "out-of-the-money|out of the money|in-the-money|in the money|at-the-money|at the money|one usual 20-session moves|one usual 20-session move|usual ranges|usual range|usual moves|usual move";
+  const GLOSSARY = {
+    "one usual 20-session moves": "The size of an ordinary 20-session move, set by realized volatility. The lesson’s hard rise or hard drop finishes outside one of these.",
+    "one usual 20-session move": "The size of an ordinary 20-session move, set by realized volatility. The lesson’s hard rise or hard drop finishes outside one of these.",
+    "two standard deviations": "Twice the width of the usual range. The outer marks on the price band are this width.",
+    "one standard deviation": "The lesson’s usual range. About 68% of finishes land inside a band this wide. The lesson’s hard move is a finish outside it.",
+    "one-standard-deviation": "The lesson’s usual range. About 68% of finishes land inside a band this wide. The lesson’s hard move is a finish outside it.",
+    "standard deviations": "How far finishes scatter around the price. One standard deviation is the lesson’s usual range.",
+    "standard deviation": "How far finishes scatter around the price. One standard deviation is the lesson’s usual range.",
+    "realized volatility": "How much the stock has actually moved. Here it is the annualized size of the daily closes, and it sets how wide one usual move is.",
+    "implied volatility": "The move the option’s price is charging for. It is in the premium, not in the daily closes. Realized volatility is the move that already happened.",
+    "volatility crush": "The drop in an option’s price when implied volatility falls, even if the stock itself has barely moved.",
+    "out-of-the-money": "The strike is on the side that expires worthless if the stock stays here. A call is out of the money when its strike is above the price. A put is out of the money when its strike is below the price.",
+    "out of the money": "The strike is on the side that expires worthless if the stock stays here. A call is out of the money when its strike is above the price. A put is out of the money when its strike is below the price.",
+    "in-the-money": "The strike is already on the paying side. A call is in the money when its strike is below the price. A put is in the money when its strike is above the price.",
+    "in the money": "The strike is already on the paying side. A call is in the money when its strike is below the price. A put is in the money when its strike is above the price.",
+    "at-the-money": "The strike and the price are the same. The lesson’s straddle buys the call and the put there.",
+    "at the money": "The strike and the price are the same. The lesson’s straddle buys the call and the put there.",
+    "usual ranges": "One standard deviation. About 68% of finishes land inside it. The lesson’s hard move is a finish outside it.",
+    "usual range": "One standard deviation. About 68% of finishes land inside it. The lesson’s hard move is a finish outside it.",
+    "usual moves": "The distance realized volatility says the stock tends to travel over the days left. One usual move is that distance.",
+    "usual move": "The distance realized volatility says the stock tends to travel over the days left. One usual move is that distance.",
+    "time decay": "The premium an option loses as expiration gets closer, when the stock has not moved enough to replace it.",
+    "iv rank": "A reading from the file of where implied volatility sits against that name’s own range. High means the option is expensive versus that history. Low means it is cheap versus that history.",
+    "assignment": "The short option is exercised. A short put becomes a purchase of shares at the strike. A short call becomes a sale of shares at the strike.",
+    "annualized": "A daily move scaled up to a year. Here, realized volatility is the standard deviation of daily log returns, times the square root of 252.",
+    "breakevens": "The price at expiration where the trade is neither ahead nor behind. A long call breaks even at the strike plus the premium.",
+    "breakeven": "The price at expiration where the trade is neither ahead nor behind. A long call breaks even at the strike plus the premium.",
+    "premiums": "The price of the option. A debit pays it. A credit receives it.",
+    "premium": "The price of the option. A debit pays it. A credit receives it.",
+    "debits": "Cash leaves the account to open the trade. On a long option, the most you can lose is that debit.",
+    "debit": "Cash leaves the account to open the trade. On a long option, the most you can lose is that debit.",
+    "credits": "Cash comes in to open the trade. If the options expire worthless, the gain stops at that credit.",
+    "credit": "Cash comes in to open the trade. If the options expire worthless, the gain stops at that credit.",
+    "expirations": "The date the contract ends. After that, the option is exercised or it expires worthless.",
+    "expiration": "The date the contract ends. After that, the option is exercised or it expires worthless.",
+    "strikes": "The share price written into the contract. A call pays above it. A put pays below it.",
+    "strike": "The share price written into the contract. A call pays above it. A put pays below it."
+  };
 
-  function linkTerms(text, prefix) {
+  const TERM_SOURCE = "\\b(?:" + Object.keys(GLOSSARY).sort((a, b) => b.length - a.length).map((phrase) => {
+    return phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }).join("|") + ")\\b";
+
+  let tipSeq = 0;
+
+  function termControl(label, tipText, href) {
+    const wrap = el("span", "term");
+    const control = document.createElement(href ? "a" : "button");
+    if (href) control.href = href;
+    else control.type = "button";
+    control.className = "term-btn";
+    control.textContent = label;
+    const tip = el("span", "term-tip");
+    const tipId = "tip-" + (++tipSeq);
+    tip.id = tipId;
+    tip.setAttribute("role", "tooltip");
+    tip.textContent = tipText;
+    control.setAttribute("aria-describedby", tipId);
+    wrap.append(control, tip);
+    return wrap;
+  }
+
+  function linkTerms(text) {
     const frag = document.createDocumentFragment();
-    const pattern = new RegExp(TERM_PATTERN, "gi");
+    const pattern = new RegExp(TERM_SOURCE, "gi");
     let last = 0;
     let match = pattern.exec(text);
     while (match) {
       if (match.index > last) frag.append(document.createTextNode(text.slice(last, match.index)));
-      const link = document.createElement("a");
-      link.className = "term";
-      link.href = "#" + prefix + "-picture";
-      link.textContent = match[0];
-      frag.append(link);
+      const tipText = GLOSSARY[match[0].toLowerCase()];
+      if (tipText) frag.append(termControl(match[0], tipText));
+      else frag.append(document.createTextNode(match[0]));
       last = match.index + match[0].length;
       match = pattern.exec(text);
     }
@@ -901,8 +959,41 @@
     return frag;
   }
 
-  function setLinked(node, text, prefix) {
-    node.replaceChildren(linkTerms(text || "", prefix));
+  function setLinked(node, text) {
+    node.replaceChildren(linkTerms(text || ""));
+  }
+
+  function placeTip(term) {
+    const tip = term.querySelector(".term-tip");
+    const anchor = term.querySelector(".term-btn");
+    if (!tip || !anchor) return;
+    const box = anchor.getBoundingClientRect();
+    if (box.bottom < 0 || box.top > window.innerHeight || box.width === 0) {
+      term.classList.remove("placed");
+      return;
+    }
+    const margin = 8;
+    const tipWidth = tip.offsetWidth;
+    const tipHeight = tip.offsetHeight;
+    let left = box.left;
+    if (left + tipWidth > window.innerWidth - margin) left = window.innerWidth - margin - tipWidth;
+    if (left < margin) left = margin;
+    const article = term.closest("article");
+    const articleBox = article ? article.getBoundingClientRect() : null;
+    let top = box.bottom - 2;
+    const pastArticle = articleBox && top + tipHeight > articleBox.bottom - margin;
+    const pastView = top + tipHeight > window.innerHeight - margin;
+    if ((pastArticle || pastView) && box.top - tipHeight >= margin) top = box.top - tipHeight + 2;
+    tip.style.left = left + "px";
+    tip.style.top = top + "px";
+    term.classList.add("placed");
+  }
+
+  function closeTips(except) {
+    results.querySelectorAll(".term.placed, .term.open").forEach((node) => {
+      if (node === except) return;
+      node.classList.remove("placed", "open");
+    });
   }
 
   function joinAnd(parts) {
@@ -931,10 +1022,9 @@
     return "These legs expire on " + list + ". The band uses the nearer date.";
   }
 
-  function shapeNote(id, name, legs) {
+  function shapeNote(id, legs) {
     if (!SHAPES[id]) return "The study page has no payoff picture for these legs. The band below still marks the strikes against the price.";
-    let note = name + ". ";
-    note += LESSON_SHAPE[id]
+    let note = LESSON_SHAPE[id]
       ? "The payoff shape from the study page and the scenario deck. "
       : "The payoff shape for these legs. ";
     note += "The drawing shows the shape.";
@@ -1265,7 +1355,7 @@
       pending[slot.group.symbol].then((bars) => {
         if (token !== guessToken) return;
         if (!bars) failed += 1;
-        setLinked(slot.guess, tapeGuess(slot.group, slot.id, bars), slot.prefix);
+        setLinked(slot.guess, tapeGuess(slot.group, slot.id, bars));
         paintFacts(slot, bars);
         done += 1;
         if (done < slots.length || token !== guessToken) return;
@@ -1308,31 +1398,28 @@
         : trade.name;
       const recorded = group.tape ? "The file shows the legs." : "The fill shows the legs.";
       const what = el("p");
-      setLinked(what, trade.what || trade.where, prefix);
+      setLinked(what, trade.what || trade.where);
+      const goal = el("p");
+      setLinked(goal, trade.best || trade.why || "");
+      const where = el("p");
+      if (trade.id && trade.where) setLinked(where, trade.where);
       const why = el("p");
-      setLinked(why, recorded + " It does not record the motive. The structure the legs make is " + label + ". " + trade.why, prefix);
+      const whyBody = trade.best ? trade.why : "The guess below reads the price, the trend, and the volatility. It is not a record of the motive.";
+      setLinked(why, recorded + " It does not record the motive. The structure the legs make is " + label + ". " + whyBody);
       const guess = el("p", "guess");
-      setLinked(guess, tapeGuess(group, id), prefix);
-      const figure = el("figure", "proof-mini");
-      figure.id = prefix + "-picture";
-      figure.tabIndex = -1;
+      setLinked(guess, tapeGuess(group, id));
+      const slotFig = el("figure", "strategy-slot");
+      slotFig.id = prefix + "-picture";
       const payoff = el("div", "fit");
       drawPayoff(payoff, id, prefix, trade.name);
+      const slotCaption = el("figcaption");
+      const slotNote = el("p", "slot-note");
+      setLinked(slotNote, shapeNote(id, group.legs));
+      slotCaption.append(el("p", "slot-name", trade.name), slotNote);
+      slotFig.append(payoff, slotCaption);
+      const figure = el("figure", "proof-mini");
       const band = el("div", "band");
       const read = el("p", "fill-read");
-      const jumps = el("nav", "term-jump");
-      jumps.setAttribute("aria-label", "Terms on this picture");
-      [
-        ["read", "In the money"],
-        ["read", "Out of the money"],
-        ["sd1", "One standard deviation"],
-        ["sd2", "Two standard deviations"]
-      ].forEach((pair) => {
-        const jump = document.createElement("a");
-        jump.href = "#" + prefix + "-picture";
-        jump.textContent = pair[1];
-        jumps.append(jump);
-      });
       const terms = el("dl", "terms");
       const sd1 = el("span");
       const sd2 = el("span");
@@ -1355,32 +1442,32 @@
       }
       const sd1Line = whereLine("sd1", "One standard deviation is the lesson’s usual range. ", sd1);
       const sd2Line = whereLine("sd2", "Two standard deviations are the wider band. ", sd2);
-      figure.append(payoff, el("figcaption", "", shapeNote(id, trade.name, group.legs)), band, read, sd1Line, sd2Line, jumps, terms);
+      figure.append(band, read, sd1Line, sd2Line, terms);
       const slot = { guess: guess, group: group, id: id, prefix: prefix, band: band, sd1: sd1, sd2: sd2, read: read };
       paintFacts(slot, undefined);
       article.append(title);
       if (group.when) article.append(el("p", "note", group.when));
+      article.append(slotFig, legs, el("h3", "", "What the legs are"), what, el("h3", "", "The goal"), goal);
+      if (trade.id && trade.where) article.append(el("h3", "", "Where the lesson uses it"), where);
       article.append(
-        legs,
-        el("h3", "", "What the legs are"),
-        what,
-        el("h3", "", "The picture"),
-        figure,
-        el("h3", "", "Why this shape"),
+        el("h3", "", "Why this was chosen"),
         why,
         el("h3", "", "Best guess"),
-        guess
+        guess,
+        el("h3", "", "Where this fill sits"),
+        figure
       );
       const alts = el("ul", "alts");
       (trade.switches || []).forEach((item) => {
         const li = document.createElement("li");
-        const link = document.createElement("a");
-        link.href = "index.html#" + item.id;
-        link.textContent = byId[item.id] ? byId[item.id].name : item.id;
-        li.append(link, document.createTextNode(". " + item.when + "."));
+        const name = byId[item.id] ? byId[item.id].name : item.id;
+        const about = byId[item.id] && byId[item.id].what ? byId[item.id].what : "";
+        const rest = el("span");
+        setLinked(rest, ". " + item.when + ".");
+        li.append(termControl(name, about, "index.html#" + item.id), rest);
         alts.append(li);
       });
-      article.append(el("h3", "", "If the setup were different"), alts.childElementCount ? alts : el("p", "", "The lesson does not name a switch from this shape."));
+      article.append(el("h3", "", "Other strategies that could be used"), alts.childElementCount ? alts : el("p", "", "The lesson does not name another strategy for this shape."));
       results.append(article);
       slots.push(slot);
     });
@@ -1861,6 +1948,84 @@
       fileInput.value = "";
     });
   }
+
+  let tipTimer = 0;
+
+  results.addEventListener("mouseover", (event) => {
+    const term = event.target.closest(".term");
+    if (!term || !results.contains(term)) return;
+    window.clearTimeout(tipTimer);
+    closeTips(term);
+    placeTip(term);
+  });
+
+  results.addEventListener("mouseout", (event) => {
+    const term = event.target.closest(".term");
+    if (!term || term.contains(event.relatedTarget)) return;
+    window.clearTimeout(tipTimer);
+    tipTimer = window.setTimeout(() => {
+      if (!term.classList.contains("open") && !term.contains(document.activeElement)) term.classList.remove("placed");
+    }, 220);
+  });
+
+  results.addEventListener("focusin", (event) => {
+    const term = event.target.closest(".term");
+    if (!term || !results.contains(term)) return;
+    closeTips(term);
+    placeTip(term);
+  });
+
+  results.addEventListener("focusout", (event) => {
+    const term = event.target.closest(".term");
+    if (!term || term.contains(event.relatedTarget)) return;
+    if (!term.classList.contains("open")) term.classList.remove("placed");
+  });
+
+  results.addEventListener("click", (event) => {
+    const term = event.target.closest(".term");
+    if (!term || !results.contains(term)) {
+      closeTips(null);
+      return;
+    }
+    if (event.target.closest(".term-tip")) return;
+    const anchor = term.querySelector(".term-btn");
+    if (!anchor || !anchor.contains(event.target)) return;
+    if (anchor.tagName === "A") {
+      if (window.matchMedia("(hover: none)").matches && !term.classList.contains("open")) {
+        event.preventDefault();
+        closeTips(term);
+        term.classList.add("open");
+        placeTip(term);
+      }
+      return;
+    }
+    event.preventDefault();
+    const willOpen = !term.classList.contains("open");
+    closeTips(term);
+    if (willOpen) {
+      term.classList.add("open");
+      placeTip(term);
+    } else {
+      term.classList.remove("open", "placed");
+      anchor.blur();
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".term")) closeTips(null);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeTips(null);
+  });
+
+  window.addEventListener("scroll", () => {
+    results.querySelectorAll(".term.placed").forEach(placeTip);
+  }, true);
+
+  window.addEventListener("resize", () => {
+    results.querySelectorAll(".term.placed").forEach(placeTip);
+  });
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
