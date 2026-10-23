@@ -423,7 +423,7 @@ a.term-btn {
 
 .band-svg {
   display: block;
-  width: min(100%, 22rem);
+  width: min(100%, 24rem);
   height: auto;
   margin-top: var(--space-md);
 }

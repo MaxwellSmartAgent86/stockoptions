@@ -16,6 +16,10 @@
   --color-muted: oklch(32% 0.022 258);
   --color-ink: oklch(22% 0.028 258);
   --color-accent: oklch(40% 0.14 258);
+  --color-sd-2: oklch(84% 0.07 245);
+  --color-sd-1: oklch(55% 0.13 258);
+  --color-sd-2-ink: oklch(40% 0.09 245);
+  --color-sd-1-ink: oklch(30% 0.11 258);
   --color-focus: oklch(40% 0.14 258);
   --color-gain: oklch(38% 0.09 155);
   --color-loss: oklch(40% 0.12 28);

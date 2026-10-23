@@ -942,9 +942,9 @@
   const GLOSSARY = {
     "one usual 20-session moves": "The size of an ordinary 20-session move, set by realized volatility. The lesson’s hard rise or hard drop finishes outside one of these.",
     "one usual 20-session move": "The size of an ordinary 20-session move, set by realized volatility. The lesson’s hard rise or hard drop finishes outside one of these.",
-    "two standard deviations": "Twice the width of the usual range. The outer marks on the price band are this width.",
-    "one standard deviation": "The lesson’s usual range. About 68% of finishes land inside a band this wide. The lesson’s hard move is a finish outside it.",
-    "one-standard-deviation": "The lesson’s usual range. About 68% of finishes land inside a band this wide. The lesson’s hard move is a finish outside it.",
+    "two standard deviations": "Twice the width of the usual range. The pale band on the price picture is this width.",
+    "one standard deviation": "The lesson’s usual range. About 68% of finishes land inside a band this wide. The deeper band on the picture is this range. The lesson’s hard move is a finish outside it.",
+    "one-standard-deviation": "The lesson’s usual range. About 68% of finishes land inside a band this wide. The deeper band on the picture is this range. The lesson’s hard move is a finish outside it.",
     "standard deviations": "How far finishes scatter around the price. One standard deviation is the lesson’s usual range.",
     "standard deviation": "How far finishes scatter around the price. One standard deviation is the lesson’s usual range.",
     "realized volatility": "How much the stock has actually moved. Here it is the annualized size of the daily closes, and it sets how wide one usual move is.",
@@ -1259,22 +1259,97 @@
     host.append(svg);
   }
 
-  function labelBox(item) {
-    const width = item.w;
-    if (item.anchor === "start") return { left: item.x, right: item.x + width };
-    if (item.anchor === "end") return { left: item.x - width, right: item.x };
-    return { left: item.x - width / 2, right: item.x + width / 2 };
+  function textWidth(text) {
+    return String(text).length * 10.2;
   }
 
-  function placeRows(items) {
-    const rights = [];
-    items.slice().sort((a, b) => a.x - b.x).forEach((item) => {
-      const box = labelBox(item);
+  function labelBox(x, w, anchor) {
+    if (anchor === "start") return { left: x, right: x + w };
+    if (anchor === "end") return { left: x - w, right: x };
+    return { left: x - w / 2, right: x + w / 2 };
+  }
+
+  function layoutCallouts(items, left, right) {
+    const gap = 10;
+    const sorted = items.slice().sort((a, b) => a.x - b.x || String(a.text).localeCompare(String(b.text)));
+    const rows = [];
+    sorted.forEach((item, index) => {
+      const prevX = index > 0 ? sorted[index - 1].x : null;
+      const nextX = index < sorted.length - 1 ? sorted[index + 1].x : null;
       let row = 0;
-      while (rights[row] != null && box.left < rights[row] + 8) row += 1;
-      rights[row] = box.right;
-      item.row = row;
+      let placed = false;
+      while (row < 6 && !placed) {
+        const corridor = row === 0 && !item.lockX;
+        const lo = corridor && prevX != null ? Math.max(left, prevX + 4) : left;
+        const hi = corridor && nextX != null ? Math.min(right, nextX - 4) : right;
+        const anchors = item.lockX ? [["middle", item.x]] : [["middle", item.x], ["start", item.x], ["end", item.x]];
+        const rowItems = rows[row] || [];
+        const candidates = [];
+        const shifted = [];
+        anchors.forEach((pair) => {
+          candidates.push({ anchor: pair[0], x: pair[1] });
+          let x = pair[1];
+          let box = labelBox(x, item.w, pair[0]);
+          if (box.left < lo) x += lo - box.left;
+          box = labelBox(x, item.w, pair[0]);
+          if (box.right > hi) x -= box.right - hi;
+          if (Math.abs(x - pair[1]) > 0.5) shifted.push({ anchor: pair[0], x: x });
+        });
+        shifted.forEach((candidate) => candidates.push(candidate));
+        for (let c = 0; c < candidates.length; c++) {
+          const candidate = candidates[c];
+          const box = labelBox(candidate.x, item.w, candidate.anchor);
+          if (box.left < lo - 0.5 || box.right > hi + 0.5) continue;
+          let hit = false;
+          for (let i = 0; i < rowItems.length; i++) {
+            const other = rowItems[i];
+            if (box.left < other.edge + gap && box.right > other.left - gap) hit = true;
+          }
+          if (hit) continue;
+          item.labelX = candidate.x;
+          item.anchor = candidate.anchor;
+          item.row = row;
+          item.left = box.left;
+          item.edge = box.right;
+          if (!rows[row]) rows[row] = [];
+          rows[row].push(item);
+          placed = true;
+          break;
+        }
+        if (!placed) row += 1;
+      }
+      if (!placed) {
+        const box = labelBox(item.x, item.w, "middle");
+        item.labelX = item.x;
+        item.anchor = "middle";
+        item.row = row;
+        item.left = box.left;
+        item.edge = box.right;
+      }
     });
+  }
+
+  function fitCallouts(marks, left, right) {
+    function apply(wide) {
+      const items = marks.map((mark) => {
+        const brief = mark.leg.strike + " " + mark.leg.kind;
+        const text = wide ? mark.leg.side + " " + brief : brief;
+        return {
+          leg: mark.leg,
+          text: text,
+          x: mark.x,
+          w: textWidth(text),
+          lockX: !!mark.lockX
+        };
+      });
+      layoutCallouts(items, left, right);
+      const rows = items.reduce((max, item) => Math.max(max, (item.row || 0) + 1), 1);
+      return { items: items, rows: rows };
+    }
+    const full = apply(true);
+    if (full.rows <= 1) return full;
+    const brief = apply(false);
+    return brief.rows < full.rows ? brief : full;
   }
 
   function drawBand(host, facts, legs) {
@@ -1307,50 +1382,115 @@
     const plotL = 16;
     const plotR = 284;
     function X(price) { return plotL + (price - lo) / (hi - lo) * (plotR - plotL); }
-    const axisY = 112;
-    const strikes = options.map((leg) => {
-      const text = leg.strike + " " + leg.kind;
-      const x = X(leg.strike);
-      return {
-        text: text,
-        x: x,
-        w: text.length * 9.2,
-        anchor: x < 48 ? "start" : (x > width - 48 ? "end" : "middle"),
-        tick: x
-      };
+    const strikeCount = {};
+    options.forEach((leg) => {
+      strikeCount[leg.strike] = (strikeCount[leg.strike] || 0) + 1;
     });
-    placeRows(strikes);
-    const strikeRows = strikes.reduce((max, item) => Math.max(max, item.row + 1), 0);
-    const height = axisY + 40 + Math.max(strikeRows, 1) * 22;
+    const marks = options.map((leg) => ({
+      leg: leg,
+      x: X(leg.strike),
+      lockX: strikeCount[leg.strike] > 1
+    })).sort((a, b) => a.x - b.x || (a.leg.kind === "put" ? -1 : 1));
+    // Dots this size sit on each other when the gap is under 28. Those strikes share an enlarged strip.
+    const groups = [];
+    marks.forEach((mark) => {
+      const last = groups[groups.length - 1];
+      const samePrice = last && last[last.length - 1].leg.strike === mark.leg.strike;
+      if (last && !samePrice && mark.x - last[last.length - 1].x < 28) last.push(mark);
+      else groups.push([mark]);
+    });
+    const zoom = [];
+    const singles = [];
+    groups.forEach((group) => {
+      const span = group[group.length - 1].leg.strike - group[0].leg.strike;
+      if (group.length > 1 && span > 0) zoom.push.apply(zoom, group);
+      else group.forEach((mark) => singles.push(mark));
+    });
+    zoom.sort((a, b) => a.leg.strike - b.leg.strike || (a.leg.kind === "put" ? -1 : 1));
+
+    const axisY = move ? 107 : 40;
+    const bandH = 22;
+    const bandTop = axisY - bandH / 2;
+    const bandBottom = axisY + bandH / 2;
+    const labelPitch = 30;
+    let inset = null;
+    if (zoom.length) {
+      const strikes = zoom.map((mark) => mark.leg.strike);
+      let zLo = Math.min.apply(null, strikes);
+      let zHi = Math.max.apply(null, strikes);
+      const span = Math.max(zHi - zLo, 1);
+      const zPad = Math.max(span * 0.28, 1);
+      zLo -= zPad;
+      zHi += zPad;
+      function ZX(price) { return plotL + (price - zLo) / (zHi - zLo) * (plotR - plotL); }
+      const zoomMarks = zoom.map((mark) => ({
+        leg: mark.leg,
+        x: ZX(mark.leg.strike),
+        lockX: strikeCount[mark.leg.strike] > 1
+      }));
+      const fit = fitCallouts(zoomMarks, plotL, plotR);
+      inset = { lo: zLo, hi: zHi, X: ZX, fit: fit, h: bandH + 16 + fit.rows * labelPitch };
+    }
+    let stemL = plotL;
+    let stemR = plotR;
+    if (zoom.length) {
+      stemL = Math.min.apply(null, zoom.map((mark) => mark.x));
+      stemR = Math.max.apply(null, zoom.map((mark) => mark.x));
+      const stemMid = (stemL + stemR) / 2;
+      if (stemR - stemL < 16) {
+        stemL = stemMid - 8;
+        stemR = stemMid + 8;
+      }
+      stemL = Math.max(plotL, stemL);
+      stemR = Math.min(plotR, stemR);
+    }
+    const leftSingles = inset ? singles.filter((mark) => mark.x < stemL) : [];
+    const rightSingles = inset ? singles.filter((mark) => mark.x > stemR) : [];
+    const leftFit = leftSingles.length && stemL - 8 > plotL + 24 ? fitCallouts(leftSingles, plotL, stemL - 8) : null;
+    const rightFit = rightSingles.length && stemR + 8 < plotR - 24 ? fitCallouts(rightSingles, stemR + 8, plotR) : null;
+    const singleFit = !inset && singles.length ? fitCallouts(singles, plotL, plotR) : null;
+    let cursor = bandBottom + 4;
+    let funnelTop = 0;
+    let funnelNeck = 0;
+    let funnelBottom = 0;
+    let insetTop = 0;
+    let insetBottom = 0;
+    let calloutTop = 0;
+    if (inset && (leftFit || rightFit)) {
+      const besideRows = Math.max(leftFit ? leftFit.rows : 0, rightFit ? rightFit.rows : 0);
+      calloutTop = bandBottom + 8;
+      funnelTop = bandBottom + 4;
+      funnelNeck = calloutTop + besideRows * labelPitch + 6;
+      funnelBottom = funnelNeck + 22;
+      insetTop = funnelBottom;
+      insetBottom = insetTop + inset.h;
+      cursor = insetBottom + 8;
+    } else if (inset) {
+      funnelTop = cursor;
+      funnelNeck = funnelTop;
+      funnelBottom = funnelTop + 42;
+      insetTop = funnelBottom;
+      insetBottom = insetTop + inset.h;
+      cursor = insetBottom + 4;
+    }
+    if (singleFit) {
+      calloutTop = cursor + 8;
+      cursor = calloutTop + singleFit.rows * labelPitch;
+    }
+    const height = Math.max(cursor + 12, bandBottom + 20);
+    const aria = move
+      ? "Price band. The deeper blue is one standard deviation, the usual range. The pale blue is two standard deviations. A filled dot is long and an open dot is short. Green is a call and red is a put. Strikes that land on the same spot are enlarged below."
+      : "Price band. A filled dot is long and an open dot is short. Green is a call and red is a put. Strikes that land on the same spot are enlarged below.";
     const svg = svgEl("svg", {
       viewBox: "0 0 " + width + " " + height,
       class: "band-svg",
       role: "img",
-      "aria-label": "Price band. The inner marks are one standard deviation, the usual range. The outer marks are two standard deviations."
+      "aria-label": aria
     });
-    function band(x1, x2, thickness, color) {
-      svg.append(svgEl("line", {
-        x1: x1.toFixed(1), y1: String(axisY), x2: x2.toFixed(1), y2: String(axisY),
-        stroke: color, "stroke-width": String(thickness), "stroke-linecap": "butt"
-      }));
-    }
-    if (move) {
-      band(X(spot - 2 * move), X(spot + 2 * move), 8, "var(--color-rule)");
-      band(X(spot - move), X(spot + move), 8, "var(--color-ink)");
-    }
-    svg.append(svgEl("line", {
-      x1: String(plotL), y1: String(axisY), x2: String(plotR), y2: String(axisY),
-      stroke: "var(--color-ink)", "stroke-width": "1.25"
-    }));
-    function tick(x, y1, y2, sw, dash, color) {
-      svg.append(svgEl("line", {
-        x1: x.toFixed(1), y1: String(y1), x2: x.toFixed(1), y2: String(y2),
-        stroke: color, "stroke-width": String(sw), "stroke-dasharray": dash || "none"
-      }));
-    }
+    function n1(value) { return value.toFixed(1); }
     function paintLabel(text, x, y, anchor, fill) {
       const node = svgEl("text", {
-        x: x.toFixed(1),
+        x: n1(x),
         y: String(y),
         "text-anchor": anchor || "middle",
         fill: fill || "var(--color-ink)",
@@ -1360,30 +1500,116 @@
       node.textContent = text;
       svg.append(node);
     }
+    function addLine(x1, y1, x2, y2, color, sw) {
+      svg.append(svgEl("line", {
+        x1: n1(x1), y1: n1(y1), x2: n1(x2), y2: n1(y2),
+        stroke: color, "stroke-width": String(sw), "stroke-linecap": "butt"
+      }));
+    }
+    function addRect(x, y, w, h, fill) {
+      if (!(w > 0) || !(h > 0)) return;
+      svg.append(svgEl("rect", {
+        x: n1(x), y: n1(y), width: n1(w), height: n1(h), fill: fill
+      }));
+    }
+    function paintZones(xOf, y, h, zoneLo, zoneHi) {
+      const cuts = [zoneLo, zoneHi];
+      if (move) {
+        [spot - 2 * move, spot - move, spot + move, spot + 2 * move].forEach((price) => {
+          if (price > zoneLo && price < zoneHi) cuts.push(price);
+        });
+      }
+      cuts.sort((a, b) => a - b);
+      for (let i = 0; i < cuts.length - 1; i++) {
+        const a = cuts[i];
+        const b = cuts[i + 1];
+        const mid = (a + b) / 2;
+        let fill = "var(--color-paper-2)";
+        if (move) {
+          const dist = Math.abs(mid - spot);
+          if (dist <= move) fill = "var(--color-sd-1)";
+          else if (dist <= 2 * move) fill = "var(--color-sd-2)";
+        }
+        const x1 = xOf(a);
+        const x2 = xOf(b);
+        addRect(Math.min(x1, x2) - 0.4, y, Math.abs(x2 - x1) + 0.8, h, fill);
+      }
+    }
+    function strikeDot(x, y, leg) {
+      const color = leg.kind === "call" ? "var(--color-gain)" : "var(--color-loss)";
+      svg.append(svgEl("circle", {
+        cx: n1(x), cy: n1(y), r: "8.5", fill: "var(--color-paper)"
+      }));
+      if (leg.side === "short") {
+        svg.append(svgEl("circle", {
+          cx: n1(x), cy: n1(y), r: "5.5",
+          fill: "var(--color-paper)", stroke: color, "stroke-width": "2.25"
+        }));
+      } else {
+        svg.append(svgEl("circle", {
+          cx: n1(x), cy: n1(y), r: "6", fill: color
+        }));
+      }
+    }
+    function leader(x1, y1, x2, yText) {
+      const yRail = yText - 11;
+      const yStart = Math.min(y1, yRail);
+      const path = Math.abs(x1 - x2) < 4
+        ? "M " + n1(x1) + " " + n1(yStart) + " L " + n1(x2) + " " + n1(yText)
+        : "M " + n1(x1) + " " + n1(yStart) + " L " + n1(x1) + " " + n1(yRail)
+          + " L " + n1(x2) + " " + n1(yRail) + " L " + n1(x2) + " " + n1(yText);
+      svg.append(svgEl("path", {
+        d: path, fill: "none", stroke: "var(--color-neutral)",
+        "stroke-width": "1.25", "stroke-linejoin": "round", "stroke-linecap": "round"
+      }));
+    }
+    function paintCallouts(fit, yStart, fromY) {
+      fit.items.forEach((item) => {
+        const baseline = yStart + 16 + item.row * labelPitch;
+        leader(item.x, fromY, item.labelX, baseline - 16);
+        paintLabel(item.text, item.labelX, baseline, item.anchor || "middle", "var(--color-ink)");
+      });
+    }
+
     if (move) {
-      [[2, "2 SD", 22, "var(--color-neutral)", "none"], [1, "1 SD", 48, "var(--color-ink)", "none"]].forEach((pair) => {
-        const mult = pair[0];
-        const text = pair[1];
-        const y = pair[2];
-        const color = pair[3];
-        const xL = X(spot - mult * move);
-        const xR = X(spot + mult * move);
-        tick(xL, y + 4, axisY - 8, 1.5, "none", color);
-        tick(xR, y + 4, axisY - 8, 1.5, "none", color);
-        if (xR - xL < 76) paintLabel(text, (xL + xR) / 2, y, "middle", color);
+      [[2, "2 SD", 20, "var(--color-sd-2-ink)"], [1, "1 SD", 46, "var(--color-sd-1-ink)"]].forEach((pair) => {
+        const xL = X(spot - pair[0] * move);
+        const xR = X(spot + pair[0] * move);
+        addLine(xL, pair[2] + 4, xL, pair[2] + 16, pair[3], 1.5);
+        addLine(xR, pair[2] + 4, xR, pair[2] + 16, pair[3], 1.5);
+        if (xR - xL < 100) paintLabel(pair[1], (xL + xR) / 2, pair[2], "middle", pair[3]);
         else {
-          paintLabel(text, xL, y, xL < 40 ? "start" : "middle", color);
-          paintLabel(text, xR, y, xR > width - 40 ? "end" : "middle", color);
+          paintLabel(pair[1], xL, pair[2], xL < 36 ? "start" : "middle", pair[3]);
+          paintLabel(pair[1], xR, pair[2], xR > width - 36 ? "end" : "middle", pair[3]);
         }
       });
     }
     const spotX = X(spot);
-    tick(spotX, 84, axisY + 8, 2.2, "none", "var(--color-ink)");
-    paintLabel(money(spot), spotX, 78, spotX < 56 ? "start" : (spotX > width - 56 ? "end" : "middle"), "var(--color-ink)");
-    strikes.forEach((item) => {
-      tick(item.tick, axisY, axisY + 14, 1.5, "none", "var(--color-ink)");
-      paintLabel(item.text, item.tick, axisY + 32 + item.row * 22, item.anchor, "var(--color-ink)");
-    });
+    const priceY = move ? 84 : 22;
+    paintLabel(money(spot), spotX, priceY, spotX < 56 ? "start" : (spotX > width - 56 ? "end" : "middle"), "var(--color-ink)");
+    paintZones(X, bandTop, bandH, lo, hi);
+    addLine(plotL, axisY, plotR, axisY, "var(--color-ink)", 1.25);
+    addLine(spotX, priceY + 4, spotX, bandBottom + 5, "var(--color-ink)", 2.2);
+    marks.forEach((mark) => strikeDot(mark.x, axisY, mark.leg));
+
+    if (inset) {
+      const mouth = funnelNeck > funnelTop + 1
+        ? [[stemL, funnelTop], [stemR, funnelTop], [stemR, funnelNeck], [plotR, funnelBottom], [plotL, funnelBottom], [stemL, funnelNeck]]
+        : [[stemL, funnelTop], [stemR, funnelTop], [plotR, funnelBottom], [plotL, funnelBottom]];
+      svg.append(svgEl("polygon", {
+        points: mouth.map((pair) => n1(pair[0]) + "," + n1(pair[1])).join(" "),
+        fill: "var(--color-paper-2)",
+        stroke: "var(--color-rule)",
+        "stroke-width": "1"
+      }));
+      paintZones(inset.X, insetTop, bandH, inset.lo, inset.hi);
+      addLine(plotL, insetTop + bandH / 2, plotR, insetTop + bandH / 2, "var(--color-ink)", 1.25);
+      inset.fit.items.forEach((item) => strikeDot(item.x, insetTop + bandH / 2, item.leg));
+      paintCallouts(inset.fit, insetTop + bandH + 4, insetTop + bandH / 2 + 10);
+    }
+    if (leftFit) paintCallouts(leftFit, calloutTop, axisY + 12);
+    if (rightFit) paintCallouts(rightFit, calloutTop, axisY + 12);
+    if (singleFit) paintCallouts(singleFit, calloutTop, axisY + 12);
     host.append(svg);
   }
 
@@ -1552,8 +1778,8 @@
       addTerm("In the money", "The strike is already on the paying side. A call is in the money when its strike is below the price. A put is in the money when its strike is above the price.");
       addTerm("Out of the money", "The strike is on the side that expires worthless if the stock stays here. A call is out of the money when its strike is above the price. A put is out of the money when its strike is below the price.");
       addTerm("At the money", "The strike and the price are the same. The lesson’s straddle buys the call and the put there.");
-      addTerm("One standard deviation", "The lesson’s usual range. About 68% of finishes land inside a band this wide. The inner marks on the picture are this band. The lesson’s hard move is a finish outside it.");
-      addTerm("Two standard deviations", "Twice the width of the usual range. The outer marks on the picture are this band.");
+      addTerm("One standard deviation", "The lesson’s usual range. About 68% of finishes land inside a band this wide. The deeper band on the picture is this range. The lesson’s hard move is a finish outside it.");
+      addTerm("Two standard deviations", "Twice the width of the usual range. The pale band on the picture is this range.");
       read.id = prefix + "-read";
       read.tabIndex = -1;
       function whereLine(key, lead, span) {
