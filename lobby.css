@@ -283,6 +283,89 @@ label {
   font-weight: 600;
 }
 
+a.term {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-underline-offset: 0.18em;
+  display: inline-block;
+  min-height: 44px;
+  padding: 0.75rem 0.2rem;
+  line-height: 1.25;
+}
+
+.proof-mini {
+  margin: var(--space-sm) 0 0;
+  scroll-margin-top: 0.5rem;
+}
+
+.proof-mini .fit {
+  margin: 0;
+  max-width: 10rem;
+}
+
+.proof-mini .fit-svg {
+  width: min(100%, 10rem);
+}
+
+.proof-mini figcaption {
+  margin-top: var(--space-xs);
+  max-width: 62ch;
+}
+
+.band-svg {
+  display: block;
+  width: min(100%, 22rem);
+  height: auto;
+  margin-top: var(--space-md);
+}
+
+.fill-read,
+.sd-where {
+  margin: var(--space-sm) 0 0;
+  max-width: 62ch;
+  scroll-margin-top: 0.5rem;
+}
+
+.fill-read:empty {
+  display: none;
+}
+
+.fill-read:target,
+.sd-where:target {
+  background: var(--color-paper-2);
+}
+
+.term-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-md);
+  margin-top: var(--space-sm);
+}
+
+.term-jump a {
+  color: var(--color-accent);
+  font-weight: 600;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.terms {
+  margin: var(--space-xs) 0 0;
+}
+
+.terms dt {
+  margin-top: var(--space-md);
+  font-weight: 600;
+}
+
+.terms dd {
+  margin: var(--space-2xs) 0 0;
+  max-width: 62ch;
+}
+
+
+
 .scenario {
   margin: var(--space-md) 0 0;
   max-width: 62ch;

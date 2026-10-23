@@ -849,6 +849,410 @@
     return start();
   }
 
+  const SHAPES = {
+    "long-call": [[0.04, -0.42], [0.46, -0.42], [0.94, 0.74]],
+    "long-put": [[0.06, 0.74], [0.54, -0.42], [0.96, -0.42]],
+    "covered-call": [[0.04, -0.78], [0.5, 0.36], [0.96, 0.36]],
+    "cash-secured-put": [[0.04, -0.78], [0.5, 0.36], [0.96, 0.36]],
+    "wheel": [[0.04, -0.78], [0.5, 0.36], [0.96, 0.36]],
+    "protective-put": [[0.04, -0.38], [0.44, -0.38], [0.96, 0.74]],
+    "bull-call": [[0.04, -0.46], [0.34, -0.46], [0.64, 0.4], [0.96, 0.4]],
+    "bear-put": [[0.04, 0.4], [0.36, 0.4], [0.66, -0.46], [0.96, -0.46]],
+    "iron-condor": [[0.04, -0.4], [0.18, -0.4], [0.34, 0.4], [0.66, 0.4], [0.82, -0.4], [0.96, -0.4]],
+    "straddle": [[0.08, 0.74], [0.5, -0.58], [0.92, 0.74]],
+    "strangle": [[0.06, 0.7], [0.28, -0.42], [0.72, -0.42], [0.94, 0.7]],
+    "calendar": [[0.08, -0.36], [0.26, -0.06], [0.38, 0.28], [0.5, 0.58], [0.62, 0.28], [0.74, -0.06], [0.92, -0.36]],
+    "short-call": [[0.04, 0.36], [0.5, 0.36], [0.96, -0.78]],
+    "short-put": [[0.04, -0.78], [0.5, 0.36], [0.96, 0.36]],
+    "put-credit": [[0.04, -0.46], [0.34, -0.46], [0.66, 0.4], [0.96, 0.4]],
+    "call-credit": [[0.04, 0.4], [0.36, 0.4], [0.66, -0.46], [0.96, -0.46]],
+    "short-strangle": [[0.06, -0.7], [0.28, 0.42], [0.72, 0.42], [0.94, -0.7]],
+    "short-calendar": [[0.08, 0.36], [0.26, 0.06], [0.38, -0.28], [0.5, -0.58], [0.62, -0.28], [0.74, 0.06], [0.92, 0.36]],
+    "diagonal": [[0.06, -0.4], [0.34, -0.4], [0.66, 0.36], [0.94, 0.36]],
+    "collar": [[0.06, -0.36], [0.28, -0.36], [0.72, 0.36], [0.94, 0.36]],
+    "stock-sale": [[0.08, 0.7], [0.92, -0.7]],
+    "shares": [[0.08, -0.7], [0.92, 0.7]]
+  };
+
+  const LESSON_SHAPE = {
+    "long-call": true, "long-put": true, "covered-call": true, "cash-secured-put": true,
+    "wheel": true, "protective-put": true, "bull-call": true, "bear-put": true,
+    "iron-condor": true, "straddle": true, "strangle": true, "calendar": true
+  };
+
+  const TERM_PATTERN = "out-of-the-money|out of the money|in-the-money|in the money|at-the-money|at the money|one usual 20-session moves|one usual 20-session move|usual ranges|usual range|usual moves|usual move";
+
+  function linkTerms(text, prefix) {
+    const frag = document.createDocumentFragment();
+    const pattern = new RegExp(TERM_PATTERN, "gi");
+    let last = 0;
+    let match = pattern.exec(text);
+    while (match) {
+      if (match.index > last) frag.append(document.createTextNode(text.slice(last, match.index)));
+      const link = document.createElement("a");
+      link.className = "term";
+      link.href = "#" + prefix + "-picture";
+      link.textContent = match[0];
+      frag.append(link);
+      last = match.index + match[0].length;
+      match = pattern.exec(text);
+    }
+    if (last < text.length) frag.append(document.createTextNode(text.slice(last)));
+    return frag;
+  }
+
+  function setLinked(node, text, prefix) {
+    node.replaceChildren(linkTerms(text || "", prefix));
+  }
+
+  function joinAnd(parts) {
+    if (parts.length < 2) return parts[0] || "";
+    if (parts.length === 2) return parts[0] + " and " + parts[1];
+    return parts.slice(0, -1).join(", ") + ", and " + parts[parts.length - 1];
+  }
+
+  function expirationDates(legs) {
+    const dates = [];
+    legs.forEach((leg) => {
+      if (leg.expiration && dates.indexOf(leg.expiration) === -1) dates.push(leg.expiration);
+    });
+    dates.sort();
+    return dates;
+  }
+
+  function expirationNote(id, legs) {
+    const dates = expirationDates(legs);
+    if (dates.length < 2) return "";
+    const list = joinAnd(dates.map(prettyISO));
+    if (id === "strangle") return "The lesson’s strangle keeps one expiration. These legs expire on " + list + ". The flat bottom is the shape of the two strikes.";
+    if (id === "straddle") return "The lesson’s straddle keeps one expiration. These legs expire on " + list + ".";
+    if (id === "diagonal") return "The lesson’s calendar keeps one strike and changes the month. These legs change the strike and the month. They expire on " + list + ".";
+    if (id === "calendar" || id === "short-calendar") return "";
+    return "These legs expire on " + list + ". The band uses the nearer date.";
+  }
+
+  function shapeNote(id, name, legs) {
+    if (!SHAPES[id]) return "The study page has no payoff picture for these legs. The band below still marks the strikes against the price.";
+    let note = name + ". ";
+    note += LESSON_SHAPE[id]
+      ? "The payoff shape from the study page and the scenario deck. "
+      : "The payoff shape for these legs. ";
+    note += "The drawing shows the shape.";
+    if (id === "wheel") note += " One phase, the same shape as the cash-secured put.";
+    const extra = expirationNote(id, legs);
+    if (extra) note += " " + extra;
+    return note;
+  }
+
+  function moneySide(leg, spot) {
+    if (leg.strike === spot) return "at the money";
+    if (leg.kind === "call") return leg.strike < spot ? "in the money" : "out of the money";
+    if (leg.kind === "put") return leg.strike > spot ? "in the money" : "out of the money";
+    return "";
+  }
+
+  function fillReading(options, spot, source) {
+    if (options.length <= 6) {
+      return "Against " + source + " of " + money(spot) + ", " + joinAnd(options.map((leg) => {
+        return "the " + leg.side + " " + leg.strike + " " + leg.kind + " is " + moneySide(leg, spot);
+      })) + ".";
+    }
+    const groups = [];
+    const index = {};
+    options.forEach((leg) => {
+      const side = moneySide(leg, spot);
+      const key = leg.side + "|" + leg.kind + "|" + side;
+      if (!index[key]) {
+        index[key] = { side: leg.side, kind: leg.kind, money: side, strikes: [] };
+        groups.push(index[key]);
+      }
+      index[key].strikes.push(leg.strike);
+    });
+    const parts = groups.map((group) => {
+      group.strikes.sort((a, b) => a - b);
+      const many = group.strikes.length > 1;
+      return "the " + group.side + " " + (many ? group.kind + "s" : group.kind) + " at " + listStrikes(group.strikes) + " " + (many ? "are" : "is") + " " + group.money;
+    });
+    return "Against " + source + " of " + money(spot) + ", " + joinAnd(parts) + ".";
+  }
+
+  function bandFacts(group, bars) {
+    const tape = group.tape || {};
+    const spotFile = Number.isFinite(tape.fileSpot) ? tape.fileSpot : null;
+    const loaded = !!(bars && bars.length);
+    let spotNow = null;
+    let rv = null;
+    let asOf = "";
+    if (loaded) {
+      const last = bars[bars.length - 1];
+      spotNow = last.close;
+      asOf = last.date;
+      rv = realizedVol(bars, bars.length - 1);
+    }
+    return {
+      spot: spotNow != null ? spotNow : spotFile,
+      rv: rv,
+      asOf: asOf,
+      left: daysLeft(group, asOf),
+      nearer: expirationDates(group.legs)[0] || "",
+      loaded: loaded,
+      waiting: bars === undefined,
+      datesDiffer: expirationDates(group.legs).length > 1
+    };
+  }
+
+  function sdWhere(which, facts) {
+    if (facts.waiting) return "The daily closes are still loading, so this mark is not on the picture yet.";
+    if (!facts.loaded) return "The daily closes did not load, so this mark is not on the picture.";
+    if (facts.spot == null) return "The price did not load, so this mark is not on the picture.";
+    if (!facts.rv) return "Realized volatility did not compute from the daily closes, so this mark is not on the picture.";
+    if (!facts.left.days) return "No days are left to the nearer expiration, so this mark is not a band on the picture.";
+    const width = facts.spot * facts.rv * Math.sqrt(facts.left.days / 365) * which;
+    const dayWord = facts.left.days === 1 ? " day" : " days";
+    const when = facts.left.fromFile
+      ? "over the " + facts.left.days + dayWord + " left in the file"
+      : "over the " + facts.left.days + dayWord + " left";
+    const date = facts.nearer ? ", to " + prettyISO(facts.nearer) : "";
+    const nearer = facts.datesDiffer ? " Measured to the nearer expiration." : "";
+    return "From the last close it runs from " + money(facts.spot - width) + " to " + money(facts.spot + width) + ", " + when + date + "." + nearer;
+  }
+
+  function svgEl(name, attrs) {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+    Object.keys(attrs).forEach((key) => node.setAttribute(key, attrs[key]));
+    return node;
+  }
+
+  function payoffArrow(svg, x, y, dx, dy) {
+    const len = 8;
+    const wing = 3.6;
+    const points = [
+      [x, y],
+      [x - dx * len + -dy * wing, y - dy * len + dx * wing],
+      [x - dx * len - -dy * wing, y - dy * len - dx * wing]
+    ].map((pair) => pair[0].toFixed(1) + "," + pair[1].toFixed(1)).join(" ");
+    svg.append(svgEl("polygon", { points: points, fill: "var(--color-ink)" }));
+  }
+
+  function drawPayoff(host, id, prefix, name) {
+    host.replaceChildren();
+    const points = SHAPES[id];
+    if (!points) {
+      host.hidden = true;
+      return;
+    }
+    host.hidden = false;
+    const left = 52;
+    const right = 184;
+    const top = 36;
+    const bottom = 180;
+    const zero = (top + bottom) / 2;
+    const span = (bottom - top) / 2;
+    const clipId = prefix + "-clip";
+    const svg = svgEl("svg", {
+      viewBox: "0 0 220 220",
+      class: "fit-svg",
+      role: "img",
+      "aria-label": name + " payoff at expiration"
+    });
+    const defs = svgEl("defs", {});
+    const clip = svgEl("clipPath", { id: clipId });
+    clip.append(svgEl("circle", { cx: "110", cy: "108", r: "84" }));
+    defs.append(clip);
+    svg.append(defs);
+    function X(t) { return left + t * (right - left); }
+    function Y(value) { return zero - value * span * 0.92; }
+    const mapped = points.map((pair) => ({ x: X(pair[0]), y: Y(pair[1]), v: pair[1] }));
+    const plot = svgEl("g", { "clip-path": "url(#" + clipId + ")" });
+    function poly(pts, fill) {
+      const d = pts.map((point, index) => (index ? "L" : "M") + point.x.toFixed(1) + " " + point.y.toFixed(1)).join(" ") + " Z";
+      plot.append(svgEl("path", { d: d, fill: fill }));
+    }
+    for (let i = 0; i < mapped.length - 1; i += 1) {
+      const a = mapped[i];
+      const b = mapped[i + 1];
+      const sameSide = (a.v >= 0 && b.v >= 0) || (a.v <= 0 && b.v <= 0);
+      if (sameSide) {
+        const sign = a.v > 0 || b.v > 0 ? 1 : -1;
+        if (a.v === 0 && b.v === 0) continue;
+        poly([a, b, { x: b.x, y: zero }, { x: a.x, y: zero }], sign > 0 ? "var(--color-gain-wash)" : "var(--color-loss-wash)");
+      } else {
+        const t = (0 - a.v) / (b.v - a.v);
+        const mid = { x: a.x + t * (b.x - a.x), y: zero, v: 0 };
+        poly([a, mid, { x: a.x, y: zero }], a.v > 0 ? "var(--color-gain-wash)" : "var(--color-loss-wash)");
+        poly([mid, b, { x: b.x, y: zero }], b.v > 0 ? "var(--color-gain-wash)" : "var(--color-loss-wash)");
+      }
+    }
+    plot.append(svgEl("path", {
+      d: mapped.map((point, index) => (index ? "L" : "M") + point.x.toFixed(1) + " " + point.y.toFixed(1)).join(" "),
+      fill: "none",
+      stroke: "var(--color-ink)",
+      "stroke-width": "2.5",
+      "stroke-linejoin": "round",
+      "stroke-linecap": "round"
+    }));
+    svg.append(plot);
+    svg.append(svgEl("circle", {
+      cx: "110", cy: "108", r: "86", fill: "none", stroke: "var(--color-ink)", "stroke-width": "3"
+    }));
+    const axisX = left + 4;
+    svg.append(svgEl("line", {
+      x1: String(axisX), y1: String(top + 10), x2: String(axisX), y2: String(bottom - 8),
+      stroke: "var(--color-ink)", "stroke-width": "1.6"
+    }));
+    payoffArrow(svg, axisX, top + 2, 0, -1);
+    payoffArrow(svg, axisX, bottom, 0, 1);
+    svg.append(svgEl("line", {
+      x1: String(left), y1: String(zero), x2: String(right - 10), y2: String(zero),
+      stroke: "var(--color-ink)", "stroke-width": "1.6", "stroke-dasharray": "2 3"
+    }));
+    payoffArrow(svg, right, zero, 1, 0);
+    host.append(svg);
+  }
+
+  function labelBox(item) {
+    const width = item.w;
+    if (item.anchor === "start") return { left: item.x, right: item.x + width };
+    if (item.anchor === "end") return { left: item.x - width, right: item.x };
+    return { left: item.x - width / 2, right: item.x + width / 2 };
+  }
+
+  function placeRows(items) {
+    const rights = [];
+    items.slice().sort((a, b) => a.x - b.x).forEach((item) => {
+      const box = labelBox(item);
+      let row = 0;
+      while (rights[row] != null && box.left < rights[row] + 8) row += 1;
+      rights[row] = box.right;
+      item.row = row;
+    });
+  }
+
+  function drawBand(host, facts, legs) {
+    host.replaceChildren();
+    if (facts.spot == null) return;
+    const spot = facts.spot;
+    const days = facts.left && facts.left.days;
+    const move = facts.rv && days ? spot * facts.rv * Math.sqrt(days / 365) : null;
+    const options = [];
+    const seen = {};
+    legs.forEach((leg) => {
+      if ((leg.kind !== "call" && leg.kind !== "put") || leg.strike == null) return;
+      const key = leg.strike + "|" + leg.kind;
+      if (seen[key]) return;
+      seen[key] = true;
+      options.push(leg);
+    });
+    const prices = [spot].concat(options.map((leg) => leg.strike));
+    if (move) prices.push(spot - 2 * move, spot + 2 * move);
+    let lo = Math.min.apply(null, prices);
+    let hi = Math.max.apply(null, prices);
+    if (!(hi > lo)) {
+      lo = spot * 0.98;
+      hi = spot * 1.02;
+    }
+    const pad = (hi - lo) * 0.1;
+    lo -= pad;
+    hi += pad;
+    const width = 300;
+    const plotL = 16;
+    const plotR = 284;
+    function X(price) { return plotL + (price - lo) / (hi - lo) * (plotR - plotL); }
+    const axisY = 112;
+    const strikes = options.map((leg) => {
+      const text = leg.strike + " " + leg.kind;
+      const x = X(leg.strike);
+      return {
+        text: text,
+        x: x,
+        w: text.length * 9.2,
+        anchor: x < 48 ? "start" : (x > width - 48 ? "end" : "middle"),
+        tick: x
+      };
+    });
+    placeRows(strikes);
+    const strikeRows = strikes.reduce((max, item) => Math.max(max, item.row + 1), 0);
+    const height = axisY + 40 + Math.max(strikeRows, 1) * 22;
+    const svg = svgEl("svg", {
+      viewBox: "0 0 " + width + " " + height,
+      class: "band-svg",
+      role: "img",
+      "aria-label": "Price band. The inner marks are one standard deviation, the usual range. The outer marks are two standard deviations."
+    });
+    function band(x1, x2, thickness, color) {
+      svg.append(svgEl("line", {
+        x1: x1.toFixed(1), y1: String(axisY), x2: x2.toFixed(1), y2: String(axisY),
+        stroke: color, "stroke-width": String(thickness), "stroke-linecap": "butt"
+      }));
+    }
+    if (move) {
+      band(X(spot - 2 * move), X(spot + 2 * move), 8, "var(--color-rule)");
+      band(X(spot - move), X(spot + move), 8, "var(--color-ink)");
+    }
+    svg.append(svgEl("line", {
+      x1: String(plotL), y1: String(axisY), x2: String(plotR), y2: String(axisY),
+      stroke: "var(--color-ink)", "stroke-width": "1.25"
+    }));
+    function tick(x, y1, y2, sw, dash, color) {
+      svg.append(svgEl("line", {
+        x1: x.toFixed(1), y1: String(y1), x2: x.toFixed(1), y2: String(y2),
+        stroke: color, "stroke-width": String(sw), "stroke-dasharray": dash || "none"
+      }));
+    }
+    function paintLabel(text, x, y, anchor, fill) {
+      const node = svgEl("text", {
+        x: x.toFixed(1),
+        y: String(y),
+        "text-anchor": anchor || "middle",
+        fill: fill || "var(--color-ink)",
+        "font-family": "IBM Plex Mono, ui-monospace, monospace",
+        "font-size": "16"
+      });
+      node.textContent = text;
+      svg.append(node);
+    }
+    if (move) {
+      [[2, "2 SD", 22, "var(--color-neutral)", "none"], [1, "1 SD", 48, "var(--color-ink)", "none"]].forEach((pair) => {
+        const mult = pair[0];
+        const text = pair[1];
+        const y = pair[2];
+        const color = pair[3];
+        const xL = X(spot - mult * move);
+        const xR = X(spot + mult * move);
+        tick(xL, y + 4, axisY - 8, 1.5, "none", color);
+        tick(xR, y + 4, axisY - 8, 1.5, "none", color);
+        if (xR - xL < 76) paintLabel(text, (xL + xR) / 2, y, "middle", color);
+        else {
+          paintLabel(text, xL, y, xL < 40 ? "start" : "middle", color);
+          paintLabel(text, xR, y, xR > width - 40 ? "end" : "middle", color);
+        }
+      });
+    }
+    const spotX = X(spot);
+    tick(spotX, 84, axisY + 8, 2.2, "none", "var(--color-ink)");
+    paintLabel(money(spot), spotX, 78, spotX < 56 ? "start" : (spotX > width - 56 ? "end" : "middle"), "var(--color-ink)");
+    strikes.forEach((item) => {
+      tick(item.tick, axisY, axisY + 14, 1.5, "none", "var(--color-ink)");
+      paintLabel(item.text, item.tick, axisY + 32 + item.row * 22, item.anchor, "var(--color-ink)");
+    });
+    host.append(svg);
+  }
+
+  function paintFacts(slot, bars) {
+    const facts = bandFacts(slot.group, bars);
+    const options = slot.group.legs.filter((leg) => (leg.kind === "call" || leg.kind === "put") && leg.strike != null)
+      .slice().sort((a, b) => a.strike - b.strike || (a.kind === "put" ? -1 : 1));
+    if (!options.length) slot.read.textContent = "";
+    else if (facts.spot == null) {
+      slot.read.textContent = facts.waiting
+        ? "The price has not loaded, so these strikes are not marked in or out of the money yet."
+        : "The price did not load, so these strikes are not marked in or out of the money.";
+    } else slot.read.textContent = fillReading(options, facts.spot, facts.loaded ? "the last close" : "the file’s price");
+    slot.sd1.textContent = sdWhere(1, facts);
+    slot.sd2.textContent = sdWhere(2, facts);
+    drawBand(slot.band, facts, slot.group.legs);
+  }
+
   function fillGuesses(slots, token) {
     const pending = {};
     slots.forEach((slot) => {
@@ -861,7 +1265,8 @@
       pending[slot.group.symbol].then((bars) => {
         if (token !== guessToken) return;
         if (!bars) failed += 1;
-        slot.guess.textContent = tapeGuess(slot.group, slot.id, bars);
+        setLinked(slot.guess, tapeGuess(slot.group, slot.id, bars), slot.prefix);
+        paintFacts(slot, bars);
         done += 1;
         if (done < slots.length || token !== guessToken) return;
         if (failed === slots.length) {
@@ -881,9 +1286,10 @@
     }
     statusEl.textContent = groups.length + (groups.length === 1 ? " position." : " positions.");
     const slots = [];
-    groups.forEach((group) => {
+    groups.forEach((group, index) => {
       const id = classify(group.legs);
       const trade = profile(id, group.legs);
+      const prefix = "t" + index;
       const article = el("article", "position");
       const title = el("h2");
       const heading = group.symbol + (group.order ? " #" + group.order : "") + " — " + trade.name;
@@ -901,15 +1307,67 @@
         ? (trade.name.toLowerCase().indexOf("the ") === 0 ? trade.name.toLowerCase() : "the " + trade.name.toLowerCase())
         : trade.name;
       const recorded = group.tape ? "The file shows the legs." : "The fill shows the legs.";
-      const guess = el("p", "guess", tapeGuess(group, id));
+      const what = el("p");
+      setLinked(what, trade.what || trade.where, prefix);
+      const why = el("p");
+      setLinked(why, recorded + " It does not record the motive. The structure the legs make is " + label + ". " + trade.why, prefix);
+      const guess = el("p", "guess");
+      setLinked(guess, tapeGuess(group, id), prefix);
+      const figure = el("figure", "proof-mini");
+      figure.id = prefix + "-picture";
+      figure.tabIndex = -1;
+      const payoff = el("div", "fit");
+      drawPayoff(payoff, id, prefix, trade.name);
+      const band = el("div", "band");
+      const read = el("p", "fill-read");
+      const jumps = el("nav", "term-jump");
+      jumps.setAttribute("aria-label", "Terms on this picture");
+      [
+        ["read", "In the money"],
+        ["read", "Out of the money"],
+        ["sd1", "One standard deviation"],
+        ["sd2", "Two standard deviations"]
+      ].forEach((pair) => {
+        const jump = document.createElement("a");
+        jump.href = "#" + prefix + "-picture";
+        jump.textContent = pair[1];
+        jumps.append(jump);
+      });
+      const terms = el("dl", "terms");
+      const sd1 = el("span");
+      const sd2 = el("span");
+      function addTerm(heading, body) {
+        terms.append(el("dt", "", heading), el("dd", "", body));
+      }
+      addTerm("In the money", "The strike is already on the paying side. A call is in the money when its strike is below the price. A put is in the money when its strike is above the price.");
+      addTerm("Out of the money", "The strike is on the side that expires worthless if the stock stays here. A call is out of the money when its strike is above the price. A put is out of the money when its strike is below the price.");
+      addTerm("At the money", "The strike and the price are the same. The lesson’s straddle buys the call and the put there.");
+      addTerm("One standard deviation", "The lesson’s usual range. About 68% of finishes land inside a band this wide. The inner marks on the picture are this band. The lesson’s hard move is a finish outside it.");
+      addTerm("Two standard deviations", "Twice the width of the usual range. The outer marks on the picture are this band.");
+      read.id = prefix + "-read";
+      read.tabIndex = -1;
+      function whereLine(key, lead, span) {
+        const line = el("p", "sd-where");
+        line.id = prefix + "-" + key;
+        line.tabIndex = -1;
+        line.append(document.createTextNode(lead), span);
+        return line;
+      }
+      const sd1Line = whereLine("sd1", "One standard deviation is the lesson’s usual range. ", sd1);
+      const sd2Line = whereLine("sd2", "Two standard deviations are the wider band. ", sd2);
+      figure.append(payoff, el("figcaption", "", shapeNote(id, trade.name, group.legs)), band, read, sd1Line, sd2Line, jumps, terms);
+      const slot = { guess: guess, group: group, id: id, prefix: prefix, band: band, sd1: sd1, sd2: sd2, read: read };
+      paintFacts(slot, undefined);
       article.append(title);
       if (group.when) article.append(el("p", "note", group.when));
       article.append(
         legs,
         el("h3", "", "What the legs are"),
-        el("p", "", trade.what || trade.where),
+        what,
+        el("h3", "", "The picture"),
+        figure,
         el("h3", "", "Why this shape"),
-        el("p", "", recorded + " It does not record the motive. The structure the legs make is " + label + ". " + trade.why),
+        why,
         el("h3", "", "Best guess"),
         guess
       );
@@ -924,7 +1382,7 @@
       });
       article.append(el("h3", "", "If the setup were different"), alts.childElementCount ? alts : el("p", "", "The lesson does not name a switch from this shape."));
       results.append(article);
-      slots.push({ guess: guess, group: group, id: id });
+      slots.push(slot);
     });
     fillGuesses(slots, token);
   }
