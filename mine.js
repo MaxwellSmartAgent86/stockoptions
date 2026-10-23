@@ -1961,17 +1961,20 @@
       const settle = el("div", "settle");
       const outcome = el("p", "sd-where");
       const read = el("p", "fill-read");
-      const terms = el("dl", "terms");
+      const terms = el("ul", "term-list");
       const sd1 = el("span");
       const sd2 = el("span");
-      function addTerm(heading, body) {
-        terms.append(el("dt", "", heading), el("dd", "", body));
-      }
-      addTerm("In the money", "The strike is already on the paying side. A call is in the money when its strike is below the price. A put is in the money when its strike is above the price.");
-      addTerm("Out of the money", "The strike is on the side that expires worthless if the stock stays here. A call is out of the money when its strike is above the price. A put is out of the money when its strike is below the price.");
-      addTerm("At the money", "The strike and the price are the same. The lesson’s straddle buys the call and the put there.");
-      addTerm("One standard deviation", "The lesson’s usual range. About 68% of finishes land inside a band this wide. The deeper band on the picture is this range. The lesson’s hard move is a finish outside it.");
-      addTerm("Two standard deviations", "Twice the width of the usual range. The pale band on the picture is this range.");
+      [
+        ["In the money", "The strike is already on the paying side. A call is in the money when its strike is below the price. A put is in the money when its strike is above the price."],
+        ["Out of the money", "The strike is on the side that expires worthless if the stock stays here. A call is out of the money when its strike is above the price. A put is out of the money when its strike is below the price."],
+        ["At the money", "The strike and the price are the same. The lesson’s straddle buys the call and the put there."],
+        ["One standard deviation", "The lesson’s usual range. About 68% of finishes land inside a band this wide. The deeper band on the picture is this range. The lesson’s hard move is a finish outside it."],
+        ["Two standard deviations", "Twice the width of the usual range. The pale band on the picture is this range."]
+      ].forEach((pair) => {
+        const li = document.createElement("li");
+        li.append(termControl(pair[0], pair[1]));
+        terms.append(li);
+      });
       read.id = prefix + "-read";
       read.tabIndex = -1;
       function whereLine(key, lead, span) {

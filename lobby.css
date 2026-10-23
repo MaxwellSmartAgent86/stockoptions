@@ -499,18 +499,17 @@ a.term-btn {
   }
 }
 
-.terms {
-  margin: var(--space-xs) 0 0;
+.term-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.15rem;
+  margin: var(--space-sm) 0 0;
+  padding: 0;
+  list-style: none;
 }
 
-.terms dt {
-  margin-top: var(--space-md);
+.term-list .term-btn {
   font-weight: 600;
-}
-
-.terms dd {
-  margin: var(--space-2xs) 0 0;
-  max-width: 62ch;
 }
 
 
