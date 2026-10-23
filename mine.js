@@ -848,8 +848,7 @@
     const days = Number.isFinite(tape.daysOpen) ? tape.daysOpen : null;
     const iv = Number.isFinite(tape.ivRank) ? tape.ivRank : null;
     const waiting = bars === undefined;
-    const record = spotFile != null || days != null || iv != null ? "The file does not record the motive." : "The fill does not record the motive.";
-    const sentences = ["This is a guess from the tape. " + record];
+    const sentences = [];
     let spotNow = null;
     let spotThen = null;
     let ret = null;
@@ -1837,7 +1836,6 @@
       const label = trade.id
         ? (trade.name.toLowerCase().indexOf("the ") === 0 ? trade.name.toLowerCase() : "the " + trade.name.toLowerCase())
         : trade.name;
-      const recorded = group.tape ? "The file shows the legs." : "The fill shows the legs.";
       const what = el("p");
       setLinked(what, trade.what || trade.where);
       const goal = el("p");
@@ -1845,8 +1843,8 @@
       const where = el("p");
       if (trade.id && trade.where) setLinked(where, trade.where);
       const why = el("p");
-      const whyBody = trade.best ? trade.why : "The guess below reads the price, the trend, and the volatility. It is not a record of the motive.";
-      setLinked(why, recorded + " It does not record the motive. The structure the legs make is " + label + ". " + whyBody);
+      const whyBody = trade.best ? trade.why : "The guess below reads the price, the trend, and the volatility.";
+      setLinked(why, "The structure the legs make is " + label + ". " + whyBody);
       const guess = el("p", "guess");
       setLinked(guess, tapeGuess(group, id));
       const slotFig = el("figure", "strategy-slot");
