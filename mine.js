@@ -581,6 +581,26 @@
     return sum;
   }
 
+  function expiryValue(legs, spot) {
+    if (spot == null || !legs.length) return null;
+    let total = 0;
+    for (let i = 0; i < legs.length; i++) {
+      const leg = legs[i];
+      const premium = premiumOf(leg);
+      if (premium == null) return null;
+      const qty = leg.qty || 1;
+      const sign = leg.side === "short" ? -1 : 1;
+      if (leg.kind === "stock") {
+        total += sign * (spot - premium) * qty;
+        continue;
+      }
+      if ((leg.kind !== "call" && leg.kind !== "put") || leg.strike == null) return null;
+      const intrinsic = leg.kind === "call" ? Math.max(0, spot - leg.strike) : Math.max(0, leg.strike - spot);
+      total += sign * (intrinsic - premium) * qty * 100;
+    }
+    return total;
+  }
+
   function openedValue(group) {
     if (group.tape && group.tape.daysOpen != null) return -group.tape.daysOpen;
     const iso = whenISO(group.when);
@@ -1465,7 +1485,7 @@
     });
     zoom.sort((a, b) => a.leg.strike - b.leg.strike || (a.leg.kind === "put" ? -1 : 1));
 
-    const axisY = move ? 107 : 40;
+    const axisY = move ? 196 : 70;
     const bandH = 22;
     const bandTop = axisY - bandH / 2;
     const bandBottom = axisY + bandH / 2;
@@ -1539,8 +1559,9 @@
     }
     const height = Math.max(cursor + 12, bandBottom + 20);
     const aria = (move
-      ? "Price band. The deeper blue is one standard deviation, the usual range. The pale blue is two standard deviations. "
+      ? "Price band. The deeper blue is one standard deviation, the usual range, from " + money(spot - move) + " to " + money(spot + move) + ". The pale blue is two standard deviations, from " + money(spot - 2 * move) + " to " + money(spot + 2 * move) + ". "
       : "Price band. ")
+      + "The marked price is " + money(spot) + ". "
       + "Green is a gain at expiration. Red is a loss. A filled dot is long and an open dot is short. Strikes that land on the same spot are enlarged below.";
     const svg = svgEl("svg", {
       viewBox: "0 0 " + width + " " + height,
@@ -1549,17 +1570,45 @@
       "aria-label": aria
     });
     function n1(value) { return value.toFixed(1); }
-    function paintLabel(text, x, y, anchor, fill) {
+    function paintLabel(text, x, y, anchor, fill, size, family) {
       const node = svgEl("text", {
         x: n1(x),
         y: String(y),
         "text-anchor": anchor || "middle",
         fill: fill || "var(--color-ink)",
-        "font-family": "IBM Plex Mono, ui-monospace, monospace",
-        "font-size": "16"
+        "font-family": family || "IBM Plex Mono, ui-monospace, monospace",
+        "font-size": size || "16"
       });
       node.textContent = text;
       svg.append(node);
+    }
+    function smallWidth(text) {
+      return String(text).length * 6.5;
+    }
+    function edgeSpot(x, text) {
+      const w = smallWidth(text);
+      let anchor = "middle";
+      let at = x;
+      if (at - w / 2 < 1) {
+        anchor = "start";
+        at = 1;
+      } else if (at + w / 2 > width - 1) {
+        anchor = "end";
+        at = width - 1;
+      }
+      return { at: at, anchor: anchor, box: labelBox(at, w, anchor) };
+    }
+    function paintEdgePrices(lowText, highText, xL, xR, y, fill) {
+      const left = edgeSpot(xL, lowText);
+      const right = edgeSpot(xR, highText);
+      if (left.box.right + 8 < right.box.left) {
+        paintLabel(lowText, left.at, y, left.anchor, fill, "11");
+        paintLabel(highText, right.at, y, right.anchor, fill, "11");
+        return;
+      }
+      const both = lowText + " – " + highText;
+      const mid = edgeSpot((xL + xR) / 2, both);
+      paintLabel(both, mid.at, y, mid.anchor, fill, "11");
     }
     function addLine(x1, y1, x2, y2, color, sw) {
       svg.append(svgEl("line", {
@@ -1585,7 +1634,7 @@
         const a = cuts[i];
         const b = cuts[i + 1];
         const mid = (a + b) / 2;
-        let fill = "var(--color-paper-2)";
+        let fill = "var(--color-band-out)";
         if (move) {
           const dist = Math.abs(mid - spot);
           if (dist <= move) fill = "var(--color-sd-1)";
@@ -1660,21 +1709,24 @@
     }
 
     if (move) {
-      [[2, "2 SD", 20, "var(--color-sd-2-ink)"], [1, "1 SD", 46, "var(--color-sd-1-ink)"]].forEach((pair) => {
+      [[2, "2 SD", 46, 14, "var(--color-sd-2-ink)"], [1, "1 SD", 108, 76, "var(--color-sd-1-ink)"]].forEach((pair) => {
         const xL = X(spot - pair[0] * move);
         const xR = X(spot + pair[0] * move);
-        addLine(xL, pair[2] + 4, xL, pair[2] + 16, pair[3], 1.5);
-        addLine(xR, pair[2] + 4, xR, pair[2] + 16, pair[3], 1.5);
-        if (xR - xL < 100) paintLabel(pair[1], (xL + xR) / 2, pair[2], "middle", pair[3]);
+        addLine(xL, pair[2] + 4, xL, pair[2] + 16, pair[4], 1.5);
+        addLine(xR, pair[2] + 4, xR, pair[2] + 16, pair[4], 1.5);
+        if (xR - xL < 100) paintLabel(pair[1], (xL + xR) / 2, pair[2], "middle", pair[4]);
         else {
-          paintLabel(pair[1], xL, pair[2], xL < 36 ? "start" : "middle", pair[3]);
-          paintLabel(pair[1], xR, pair[2], xR > width - 36 ? "end" : "middle", pair[3]);
+          paintLabel(pair[1], xL, pair[2], xL < 36 ? "start" : "middle", pair[4]);
+          paintLabel(pair[1], xR, pair[2], xR > width - 36 ? "end" : "middle", pair[4]);
         }
+        paintEdgePrices("(" + money(spot - pair[0] * move) + ")", "(" + money(spot + pair[0] * move) + ")", xL, xR, pair[3], pair[4]);
       });
     }
     const spotX = X(spot);
-    const priceY = move ? 84 : 22;
+    const priceY = move ? 170 : 44;
+    const capAnchor = spotX < 70 ? "start" : (spotX > width - 70 ? "end" : "middle");
     paintLabel(money(spot), spotX, priceY, spotX < 56 ? "start" : (spotX > width - 56 ? "end" : "middle"), "var(--color-ink)");
+    paintLabel("(Current Price)", spotX, move ? 140 : 14, capAnchor, "var(--color-muted)", "11", "IBM Plex Sans, sans-serif");
     paintZones(X, bandTop, bandH, lo, hi);
     paintOutcome(X, stripTop, stripH, lo, hi);
     addLine(plotL, axisY, plotR, axisY, "var(--color-ink)", 1.25);
@@ -1703,6 +1755,27 @@
     host.append(svg);
   }
 
+  function settleRow(label, value, missing) {
+    const row = el("p", "settle-row");
+    row.append(el("span", "", label));
+    const num = el("span", "settle-num", value == null ? missing : signedMoney(value));
+    if (value > 0) num.classList.add("up");
+    else if (value < 0) num.classList.add("down");
+    row.append(num);
+    return row;
+  }
+
+  function paintSettle(node, legs, spot) {
+    node.replaceChildren();
+    const book = legs.filter((leg) => leg.kind === "stock" || leg.kind === "call" || leg.kind === "put");
+    if (!book.length) return;
+    const today = groupResult({ legs: legs });
+    const expiry = expiryValue(legs, spot);
+    node.append(settleRow("P/L if closed today", today, "Not in the file"));
+    node.append(settleRow("P/L if closed at expiration", expiry, spot == null ? "Price has not loaded" : "No trade price"));
+    if (expiry != null) node.append(el("p", "settle-note", "Expiration is if the stock finishes at the marked price."));
+  }
+
   function paintFacts(slot, bars) {
     const facts = bandFacts(slot.group, bars);
     const options = slot.group.legs.filter((leg) => (leg.kind === "call" || leg.kind === "put") && leg.strike != null)
@@ -1716,6 +1789,7 @@
     slot.sd1.textContent = sdWhere(1, facts);
     slot.sd2.textContent = sdWhere(2, facts);
     if (slot.outcome) slot.outcome.textContent = outcomeNote(slot.group.legs);
+    if (slot.settle) paintSettle(slot.settle, slot.group.legs, facts.spot);
     drawBand(slot.band, facts, slot.group.legs);
   }
 
@@ -1858,6 +1932,7 @@
       slotFig.append(payoff, slotCaption);
       const figure = el("figure", "proof-mini");
       const band = el("div", "band");
+      const settle = el("div", "settle");
       const outcome = el("p", "sd-where");
       const read = el("p", "fill-read");
       const terms = el("dl", "terms");
@@ -1882,8 +1957,8 @@
       }
       const sd1Line = whereLine("sd1", "One standard deviation is the lesson’s usual range. ", sd1);
       const sd2Line = whereLine("sd2", "Two standard deviations are the wider band. ", sd2);
-      figure.append(band, outcome, read, sd1Line, sd2Line, terms);
-      const slot = { guess: guess, group: group, id: id, prefix: prefix, band: band, outcome: outcome, sd1: sd1, sd2: sd2, read: read };
+      figure.append(band, settle, outcome, read, sd1Line, sd2Line, terms);
+      const slot = { guess: guess, group: group, id: id, prefix: prefix, band: band, settle: settle, outcome: outcome, sd1: sd1, sd2: sd2, read: read };
       paintFacts(slot, undefined);
       article.append(title, el("p", "facts", factsLine(group)), slotFig, legs, el("h3", "", "What the legs are"), what, el("h3", "", "The goal"), goal);
       if (trade.id && trade.where) article.append(el("h3", "", "Where the lesson uses it"), where);

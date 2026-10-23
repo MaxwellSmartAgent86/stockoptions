@@ -11,6 +11,7 @@
 :root {
   --color-paper: oklch(96.5% 0.008 250);
   --color-paper-2: oklch(93.2% 0.012 250);
+  --color-band-out: oklch(86% 0.016 250);
   --color-rule: oklch(84% 0.014 250);
   --color-neutral: oklch(40% 0.02 255);
   --color-muted: oklch(32% 0.022 258);
