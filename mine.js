@@ -1,8 +1,6 @@
 (function () {
   const form = document.getElementById("pull");
-  const emailInput = document.getElementById("email");
-  const openBtn = document.getElementById("open-mail");
-  const outlookBtn = document.getElementById("open-outlook");
+  const pullBtn = document.getElementById("pull-mail");
   const pasteInput = document.getElementById("paste");
   const fileInput = document.getElementById("files");
   const chooseBtn = document.getElementById("choose");
@@ -105,8 +103,10 @@
       expiration: (expRaw ? expRaw.slice(0, 10) : "") || (parsed ? parsed.expiration : ""),
       cashSecured: raw.cash_secured === true || raw.cashSecured === true || raw["cash-secured"] === true,
       symbol: text(field(raw, ["underlying_symbol", "underlying-symbol", "underlying", "root"]) || (parsed && parsed.root) || field(raw, ["symbol"])),
-      account: text(raw["account-label"] || ""),
-      closed: raw.closed === true
+      account: "",
+      price: text(field(raw, ["price", "fill_price"])),
+      closed: raw.closed === true,
+      assigned: raw.assigned === true
     };
   }
 
@@ -131,6 +131,8 @@
     if (nested) {
       return rows.map((row) => ({
         symbol: text(row.symbol || row.underlying || row.underlying_symbol) || "Position",
+        when: text(row.when),
+        order: text(row.order),
         legs: row.legs.map(legFrom).filter((leg) => leg && leg.kind !== "cash")
       })).filter((row) => row.legs.length).flatMap(partition);
     }
@@ -183,7 +185,8 @@
         const sold = shorts[j];
         const later = bought.expiration && sold.expiration && bought.expiration !== sold.expiration;
         const debit = bought.strike != null && sold.strike != null && bought.strike < sold.strike;
-        if (later || debit) return [bought, sold];
+        const credit = bought.strike != null && sold.strike != null && bought.strike > sold.strike;
+        if (later || debit || credit) return [bought, sold];
       }
     }
     return null;
@@ -198,7 +201,8 @@
         const sold = shorts[j];
         const later = bought.expiration && sold.expiration && bought.expiration !== sold.expiration;
         const debit = bought.strike != null && sold.strike != null && bought.strike > sold.strike;
-        if (later || debit) return [bought, sold];
+        const credit = bought.strike != null && sold.strike != null && bought.strike < sold.strike;
+        if (later || debit || credit) return [bought, sold];
       }
     }
     return null;
@@ -221,7 +225,12 @@
         const at = pool.indexOf(leg);
         if (at >= 0) pool.splice(at, 1);
       });
-      out.push({ symbol: group.symbol, legs: found });
+      out.push({
+        symbol: group.symbol,
+        when: group.when || "",
+        order: group.order || "",
+        legs: found
+      });
       return true;
     }
     while (peel(findCondor(pool))) {}
@@ -265,17 +274,25 @@
       const leg = pool.find((item) => item.kind === "stock" && item.side === "long");
       return leg ? [leg] : null;
     })())) {}
-    if (pool.length) out.push({ symbol: group.symbol, legs: pool.slice() });
+    if (pool.length) {
+      out.push({
+        symbol: group.symbol,
+        when: group.when || "",
+        order: group.order || "",
+        legs: pool.slice()
+      });
+    }
     return out;
   }
 
   function describe(leg) {
-    const name = (leg.closed ? "Closed " : "") + (leg.side === "short" ? "Short" : "Long");
-    if (leg.kind === "stock") return name + " stock " + leg.qty;
-    if (leg.kind === "other") return name + " contract × " + leg.qty;
+    const name = (leg.assigned ? "Assigned " : (leg.closed ? "Closed " : "")) + (leg.side === "short" ? "Short" : "Long");
+    const price = leg.price ? " @ " + leg.price : "";
+    if (leg.kind === "stock") return name + " stock " + leg.qty + price;
+    if (leg.kind === "other") return name + " contract × " + leg.qty + price;
     const strike = leg.strike == null ? "" : " " + leg.strike;
     const when = leg.expiration ? " " + leg.expiration : "";
-    return name + " " + leg.kind + strike + when + " × " + leg.qty;
+    return name + " " + leg.kind + strike + when + " × " + leg.qty + price;
   }
 
   function classify(legs) {
@@ -295,18 +312,14 @@
     if (!hasShares && longCalls.length === 1 && shortCalls.length === 1 && !puts.length) {
       const bought = longCalls[0];
       const sold = shortCalls[0];
-      if (bought.expiration && sold.expiration && bought.expiration !== sold.expiration) {
-        return bought.strike != null && sold.strike != null && bought.strike !== sold.strike ? "diagonal" : "calendar";
-      }
-      if (bought.strike != null && sold.strike != null && bought.strike < sold.strike) return "bull-call";
+      const spread = spreadName(bought, sold, "bull-call", "call-credit");
+      if (spread) return spread;
     }
     if (!hasShares && longPuts.length === 1 && shortPuts.length === 1 && !calls.length) {
       const bought = longPuts[0];
       const sold = shortPuts[0];
-      if (bought.expiration && sold.expiration && bought.expiration !== sold.expiration) {
-        return bought.strike != null && sold.strike != null && bought.strike !== sold.strike ? "diagonal" : "calendar";
-      }
-      if (bought.strike != null && sold.strike != null && bought.strike > sold.strike) return "bear-put";
+      const spread = spreadName(bought, sold, "bear-put", "put-credit");
+      if (spread) return spread;
     }
     if (!hasShares && longCalls.length === 1 && shortCalls.length === 1 && longPuts.length === 1 && shortPuts.length === 1) {
       const strikes = [shortPuts[0].strike, longPuts[0].strike, shortCalls[0].strike, longCalls[0].strike];
@@ -319,8 +332,21 @@
     if (!hasShares && shortPuts.length === 1 && !longPuts.length && !calls.length) return "cash-secured-put";
     if (!hasShares && longCalls.length === 1 && !shortCalls.length && !puts.length) return "long-call";
     if (!hasShares && longPuts.length === 1 && !shortPuts.length && !calls.length) return "long-put";
+    if (!hasShares && shortCalls.length && !longCalls.length && !puts.length) return "short-call";
+    if (legs.length && legs.every((leg) => leg.kind === "stock" && leg.side === "short")) return "stock-sale";
     if (hasShares && !calls.length && !puts.length) return "shares";
     return "unmatched";
+  }
+
+  function spreadName(bought, sold, debitName, creditName) {
+    if (bought.expiration && sold.expiration && bought.expiration !== sold.expiration) {
+      if (bought.strike != null && sold.strike != null && bought.strike !== sold.strike) return "diagonal";
+      return bought.expiration > sold.expiration ? "calendar" : "short-calendar";
+    }
+    if (bought.strike == null || sold.strike == null || bought.strike === sold.strike) return "";
+    return debitName === "bull-call"
+      ? (bought.strike < sold.strike ? debitName : creditName)
+      : (bought.strike > sold.strike ? debitName : creditName);
   }
 
   function sharesNote() {
@@ -358,6 +384,57 @@
         ]
       };
     }
+    if (id === "put-credit") {
+      return {
+        name: "Put credit spread",
+        where: "Short the higher put, long the lower put, same month.",
+        why: "The lesson’s bear put buys the higher put and sells the lower one. This fill is the other way around. The short put alone is the cash-secured put. The long put caps how much that short put can make and defines the loss.",
+        switches: [
+          { id: "bear-put", when: "You buy the higher put and sell the lower one" },
+          { id: "cash-secured-put", when: "You drop the long put and keep the short put" }
+        ]
+      };
+    }
+    if (id === "call-credit") {
+      return {
+        name: "Call credit spread",
+        where: "Short the lower call, long the higher call, same month.",
+        why: "The lesson’s bull call buys the lower call and sells the higher one. This fill is the other way around. A short call with no shares is not the covered call.",
+        switches: [
+          { id: "bull-call", when: "You buy the lower call and sell the higher one" },
+          { id: "covered-call", when: "You already own the shares and you keep only the short call" }
+        ]
+      };
+    }
+    if (id === "short-calendar") {
+      return {
+        name: "Short calendar",
+        where: "Same strike. The near month is bought and the later month is sold.",
+        why: "The lesson’s calendar is long the later month and short the near month. This fill is the opposite. The strike is unchanged, which is what makes it a calendar rather than a diagonal.",
+        switches: [
+          { id: "calendar", when: "You buy the later month and sell the near month" }
+        ]
+      };
+    }
+    if (id === "short-call") {
+      return {
+        name: "Short call",
+        where: "A call was sold, and the fill has no shares.",
+        why: "The lesson’s covered call sells the call against shares you already own. Without the shares, this is not that trade. The long call is the lesson’s trade when the gain is meant to stay open.",
+        switches: [
+          { id: "covered-call", when: "You already own the shares" },
+          { id: "long-call", when: "You want the upside left open" }
+        ]
+      };
+    }
+    if (id === "stock-sale") {
+      return {
+        name: "Stock sale",
+        where: "Shares were sold, and no option is in the fill.",
+        why: "The lesson’s trades are opened on top of shares or instead of them. A sale of shares is not one of the twelve.",
+        switches: []
+      };
+    }
     return {
       name: "Not on the study page",
       where: "The legs do not match a structure on the study page.",
@@ -380,11 +457,19 @@
     if (id === "cash-secured-put") {
       const trade = byId["cash-secured-put"];
       const secured = legs.some((leg) => leg.cashSecured);
+      const assigned = legs.some((leg) => leg.assigned);
       return Object.assign({}, trade, {
-        why: trade.why + (secured
-          ? " This mail marks the cash as reserved."
-          : " This mail does not say whether the cash is reserved or only margin is posted. The payoff is the same short put. The collateral is the difference between a cash-secured put and what a desk calls a naked put.")
+        why: trade.why + (assigned
+          ? " This mail is an assignment notice. The short put was assigned, so the shares were bought at the strike. The lesson’s wheel then sells a covered call against those shares."
+          : (secured
+            ? " This mail marks the cash as reserved."
+            : " This mail does not say whether the cash is reserved or only margin is posted. The payoff is the same short put. The collateral is the difference between a cash-secured put and what a desk calls a naked put."))
       });
+    }
+    if (id === "short-call" && legs.length > 1) {
+      const note = extraNote(id);
+      note.where = "Calls were sold at more than one strike, and the fill has no shares.";
+      return note;
     }
     if (byId[id]) return byId[id];
     return extraNote(id);
@@ -409,21 +494,23 @@
       const trade = profile(id, group.legs);
       const article = el("article", "position");
       const title = el("h2");
+      const heading = group.symbol + (group.order ? " #" + group.order : "") + " — " + trade.name;
       if (trade.id) {
         const link = document.createElement("a");
         link.href = "index.html#" + trade.id;
-        link.textContent = group.symbol + " — " + trade.name;
+        link.textContent = heading;
         title.append(link);
       } else {
-        title.textContent = group.symbol + " — " + trade.name;
+        title.textContent = heading;
       }
       const legs = el("ul", "legs");
       group.legs.forEach((leg) => legs.append(el("li", "", describe(leg))));
       const label = trade.id
         ? (trade.name.toLowerCase().indexOf("the ") === 0 ? trade.name.toLowerCase() : "the " + trade.name.toLowerCase())
         : trade.name;
+      article.append(title);
+      if (group.when) article.append(el("p", "note", group.when));
       article.append(
-        title,
         legs,
         el("h3", "", "What the legs are"),
         el("p", "", trade.what || trade.where),
@@ -457,10 +544,6 @@
   function pad(value) {
     const textValue = String(value);
     return textValue.length === 1 ? "0" + textValue : textValue;
-  }
-
-  function validEmail(value) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
   }
 
   function plainMail(raw) {
@@ -643,29 +726,33 @@
     ].join("\n");
   }
 
-  function gmailUrl(address) {
-    const query = "newer_than:10d (confirmation OR filled OR \"to open\" OR \"trade confirmation\")";
-    const mail = "https://mail.google.com/mail/u/0/#search/" + encodeURIComponent(query);
-    return "https://accounts.google.com/AccountChooser?Email=" + encodeURIComponent(address) + "&continue=" + encodeURIComponent(mail);
+  function localPage() {
+    return location.hostname === "127.0.0.1" || location.hostname === "localhost";
   }
 
-  function outlookUrl(address) {
-    const query = "received>=today-10days trade confirmation";
-    return "https://outlook.live.com/mail/0/search?q=" + encodeURIComponent(query) + "&login_hint=" + encodeURIComponent(address);
-  }
-
-  function openMailbox(url) {
-    const address = emailInput.value.trim();
-    if (!validEmail(address)) {
-      statusEl.textContent = "Type the email address to open.";
-      emailInput.focus();
+  function pullMail(refresh) {
+    if (!localPage()) {
+      results.replaceChildren();
+      statusEl.textContent = "Mail is read on this Mac. Open the local study page, then pull the last 10 days.";
       return;
     }
-    const tab = window.open(url(address), "_blank");
-    if (tab) tab.opener = null;
-    statusEl.textContent = tab
-      ? "The mailbox is open in a new tab, searched for trade mail from the last 10 days. Paste those messages below, or choose the email files, then read the trades. The address was not saved."
-      : "The browser blocked the mailbox tab. Allow pop-ups for this page, then open the mailbox again.";
+    statusEl.textContent = "Reading Tastytrade mail from the last 10 days.";
+    const url = "http://127.0.0.1:8766/fills" + (refresh ? "?refresh=1" : "");
+    fetch(url).then((response) => {
+      if (!response.ok) throw new Error("status");
+      return response.json();
+    }).then((data) => {
+      const rows = Array.isArray(data) ? data : [];
+      if (!rows.length) {
+        results.replaceChildren();
+        statusEl.textContent = "No Tastytrade fill or assignment mail in the last 10 days.";
+        return;
+      }
+      render(groupRows(rows));
+      statusEl.textContent = rows.length + (rows.length === 1 ? " Tastytrade order" : " Tastytrade orders") + " from the last 10 days.";
+    }).catch(() => {
+      statusEl.textContent = "Mail could not be read. The helper on this Mac has to be running.";
+    });
   }
 
   function readMail(raw) {
@@ -700,7 +787,7 @@
     const trimmed = raw.trim();
     if (!trimmed) {
       results.replaceChildren();
-      statusEl.textContent = "Open the mailbox, then paste the trade emails from the last 10 days or choose the files.";
+      statusEl.textContent = "Pull the last 10 days, or paste a saved Tastytrade message.";
       return;
     }
     if (trimmed.charAt(0) === "{" || trimmed.charAt(0) === "[") {
@@ -720,15 +807,7 @@
     readPaste(pasteInput.value);
   });
 
-  openBtn.addEventListener("click", () => openMailbox(gmailUrl));
-  outlookBtn.addEventListener("click", () => openMailbox(outlookUrl));
-
-  emailInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      openBtn.click();
-    }
-  });
+  pullBtn.addEventListener("click", () => pullMail(true));
 
   chooseBtn.addEventListener("click", () => fileInput.click());
 
@@ -761,4 +840,6 @@
     statusEl.textContent = "Sample loaded. These are the lesson’s Coca-Cola shapes, written as mail, not an account.";
     pasteInput.focus();
   });
+
+  if (localPage()) pullMail(false);
 })();

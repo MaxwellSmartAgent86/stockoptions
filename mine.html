@@ -19,17 +19,14 @@
   <main class="sheet">
     <p class="wordmark">Five answers</p>
     <h1 id="mine-title">My trades</h1>
-    <p class="lede">Open a mailbox in this browser and read the trade mail from the last 10 days. Each fill is named as one of the trades on the study page, with the lesson’s reason for that shape and the trade it would switch to if the setup changed. The mail shows the fills. It does not show the motive.</p>
+    <p class="lede">Pull Tastytrade mail from the last 10 days. Fill messages and assignment notices are kept, and everything else is left out. Each order is named as one of the trades on the study page, with the lesson’s reason for that shape and the trade it would switch to if the setup changed. The mail shows the fills. It does not show the motive.</p>
     <form id="pull" class="pull">
-      <h2>Mailbox</h2>
-      <p class="note">Type any email address. The mailbox opens in a new tab, already searched for trade mail from the last 10 days. No broker key is used, and the address is not saved.</p>
-      <label for="email">Email address</label>
-      <input class="entry" id="email" name="email" type="email" inputmode="email" autocomplete="email" spellcheck="false">
+      <h2>Tastytrade mail</h2>
+      <p class="note">Mail on this Mac is read for the last 10 days. Only Tastytrade fill mail and assignment notices are used. The messages stay on this Mac.</p>
       <div class="actions">
-        <button type="button" class="next" id="open-mail">Open in Gmail</button>
-        <button type="button" class="next" id="open-outlook">Open in Outlook</button>
+        <button type="button" class="next" id="pull-mail">Pull the last 10 days</button>
       </div>
-      <label for="paste">Paste the trade emails, or choose the files</label>
+      <label for="paste">Or paste a saved Tastytrade message</label>
       <textarea class="paste" id="paste" name="paste" spellcheck="false"></textarea>
       <input class="file" id="files" type="file" accept=".eml,.txt,.html,message/rfc822,text/plain" multiple>
       <div class="actions">
