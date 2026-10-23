@@ -1,36 +1,19 @@
 (function () {
   const form = document.getElementById("pull");
-  const secretInput = document.getElementById("secret");
-  const refreshInput = document.getElementById("refresh");
-  const tastyBtn = document.getElementById("tasty");
+  const emailInput = document.getElementById("email");
+  const openBtn = document.getElementById("open-mail");
+  const outlookBtn = document.getElementById("open-outlook");
   const pasteInput = document.getElementById("paste");
+  const fileInput = document.getElementById("files");
+  const chooseBtn = document.getElementById("choose");
   const statusEl = document.getElementById("status");
   const results = document.getElementById("results");
   const sampleBtn = document.getElementById("sample");
-  const tastyRoot = "https://api.tastyworks.com";
 
   const byId = {};
   TRADES.forEach((trade) => {
     byId[trade.id] = trade;
   });
-
-  const SAMPLE = {
-    positions: [
-      {
-        symbol: "KO",
-        legs: [
-          { side: "long", kind: "stock", quantity: 100 },
-          { side: "short", kind: "call", strike: 75, expiration: "2026-11-20", quantity: 1 }
-        ]
-      },
-      {
-        symbol: "KO",
-        legs: [
-          { side: "short", kind: "put", strike: 55, expiration: "2026-11-20", quantity: 1, cash_secured: true }
-        ]
-      }
-    ]
-  };
 
   function text(value) {
     return value == null ? "" : String(value).trim();
@@ -122,7 +105,8 @@
       expiration: (expRaw ? expRaw.slice(0, 10) : "") || (parsed ? parsed.expiration : ""),
       cashSecured: raw.cash_secured === true || raw.cashSecured === true || raw["cash-secured"] === true,
       symbol: text(field(raw, ["underlying_symbol", "underlying-symbol", "underlying", "root"]) || (parsed && parsed.root) || field(raw, ["symbol"])),
-      account: text(raw["account-label"] || "")
+      account: text(raw["account-label"] || ""),
+      closed: raw.closed === true
     };
   }
 
@@ -286,7 +270,7 @@
   }
 
   function describe(leg) {
-    const name = leg.side === "short" ? "Short" : "Long";
+    const name = (leg.closed ? "Closed " : "") + (leg.side === "short" ? "Short" : "Long");
     if (leg.kind === "stock") return name + " stock " + leg.qty;
     if (leg.kind === "other") return name + " contract × " + leg.qty;
     const strike = leg.strike == null ? "" : " " + leg.strike;
@@ -389,8 +373,8 @@
       const secured = legs.some((leg) => leg.cashSecured);
       return Object.assign({}, trade, {
         why: trade.why + (secured
-          ? " This feed has both phases on at once, and it marks the cash for the put as reserved."
-          : " This feed has both phases on at once. It does not say whether the cash for the put is reserved or only margin is posted. The put is still the short put in the cycle.")
+          ? " This mail has both phases on at once, and it marks the cash for the put as reserved."
+          : " This mail has both phases on at once. It does not say whether the cash for the put is reserved or only margin is posted. The put is still the short put in the cycle.")
       });
     }
     if (id === "cash-secured-put") {
@@ -398,8 +382,8 @@
       const secured = legs.some((leg) => leg.cashSecured);
       return Object.assign({}, trade, {
         why: trade.why + (secured
-          ? " This feed marks the cash as reserved."
-          : " This feed does not say whether the cash is reserved or only margin is posted. The payoff is the same short put. The collateral is the difference between a cash-secured put and what a desk calls a naked put.")
+          ? " This mail marks the cash as reserved."
+          : " This mail does not say whether the cash is reserved or only margin is posted. The payoff is the same short put. The collateral is the difference between a cash-secured put and what a desk calls a naked put.")
       });
     }
     if (byId[id]) return byId[id];
@@ -416,7 +400,7 @@
   function render(groups) {
     results.replaceChildren();
     if (!groups.length) {
-      statusEl.textContent = "The feed returned no positions.";
+      statusEl.textContent = "That paste had no positions to read.";
       return;
     }
     statusEl.textContent = groups.length + (groups.length === 1 ? " position." : " positions.");
@@ -435,13 +419,16 @@
       }
       const legs = el("ul", "legs");
       group.legs.forEach((leg) => legs.append(el("li", "", describe(leg))));
+      const label = trade.id
+        ? (trade.name.toLowerCase().indexOf("the ") === 0 ? trade.name.toLowerCase() : "the " + trade.name.toLowerCase())
+        : trade.name;
       article.append(
         title,
         legs,
         el("h3", "", "What the legs are"),
         el("p", "", trade.what || trade.where),
         el("h3", "", "Why this shape"),
-        el("p", "", "The feed does not record a motive. The structure the legs make is " + (trade.id ? (trade.name.toLowerCase().indexOf("the ") === 0 ? trade.name.toLowerCase() : "the " + trade.name.toLowerCase()) : trade.name) + ". " + trade.why)
+        el("p", "", "The mail shows the fills. It does not show the motive. The structure the legs make is " + label + ". " + trade.why)
       );
       const alts = el("ul", "alts");
       (trade.switches || []).forEach((item) => {
@@ -462,142 +449,316 @@
     render(groupRows(rowsOf(data)));
   }
 
-  function tastyError(err) {
-    const body = err.body || {};
-    const nested = body.error && typeof body.error === "object" ? body.error : {};
-    const code = body.error_code || nested.code || "";
-    if (err.status === 400 || code === "invalid_grant" || code === "invalid_scope") {
-      return "tastytrade rejected that client secret or refresh token. The client scope has to be read, on the live site, and the refresh token has to come from Create Grant. Neither value was stored.";
-    }
-    if (err.status === 401) {
-      return "tastytrade refused the token. A sandbox grant does not work against the live site. Neither value was stored.";
-    }
-    if (err.status === 403) {
-      return "That grant can sign in, and it cannot read positions. Create the client with the read scope. Neither value was stored.";
-    }
-    return "The browser could not read tastytrade. Neither value was stored.";
+  const MONTHS = {
+    jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06",
+    jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12"
+  };
+
+  function pad(value) {
+    const textValue = String(value);
+    return textValue.length === 1 ? "0" + textValue : textValue;
   }
 
-  function tastyFetch(path, options) {
-    return fetch(tastyRoot + path, options).then((res) => {
-      return res.json().catch(() => ({})).then((body) => {
-        if (!res.ok) {
-          const err = new Error("status " + res.status);
-          err.status = res.status;
-          err.body = body;
-          throw err;
-        }
+  function validEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+
+  function plainMail(raw) {
+    if (!/<[a-z][\s\S]*>/i.test(raw)) return raw;
+    const doc = new DOMParser().parseFromString(raw, "text/html");
+    return doc.body ? doc.body.textContent : raw;
+  }
+
+  function headerValue(headers, name) {
+    const match = headers.match(new RegExp("^" + name + ":\\s*(.+)$", "im"));
+    return match ? match[1].trim() : "";
+  }
+
+  function decodeBody(body, encoding) {
+    if (/quoted-printable/i.test(encoding)) {
+      return body.replace(/=\n/g, "").replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+    }
+    if (/base64/i.test(encoding)) {
+      try {
+        return atob(body.replace(/\s/g, ""));
+      } catch (err) {
         return body;
-      });
-    });
+      }
+    }
+    return body;
   }
 
-  function positionPages(access, number, offset, rows) {
-    if (offset > 20) return Promise.resolve(rows);
-    const path = "/accounts/" + encodeURIComponent(number) + "/positions?page-offset=" + offset + "&per-page=100";
-    return tastyFetch(path, {
-      headers: { Accept: "application/json", Authorization: "Bearer " + access }
-    }).then((data) => {
-      const items = (data.data && data.data.items) || [];
-      items.forEach((item) => rows.push(item));
-      const page = data.pagination;
-      if (page && page["total-pages"] && offset + 1 < page["total-pages"]) {
-        return positionPages(access, number, offset + 1, rows);
-      }
-      return rows;
-    });
+  function textPart(part) {
+    const splitAt = part.indexOf("\n\n");
+    if (splitAt < 0) return "";
+    const headers = part.slice(0, splitAt);
+    const type = headerValue(headers, "Content-Type");
+    if (/text\/html/i.test(type) || /application\//i.test(type)) return "";
+    const body = decodeBody(part.slice(splitAt + 2), headerValue(headers, "Content-Transfer-Encoding"));
+    return /text\/html/i.test(type) ? "" : body;
   }
 
-  function readTasty(secret, refresh) {
-    results.replaceChildren();
-    statusEl.textContent = "Asking tastytrade for a read token…";
-    tastyFetch("/oauth/token", {
-      method: "POST",
-      headers: { Accept: "application/json", "Content-Type": "application/json" },
-      body: JSON.stringify({
-        grant_type: "refresh_token",
-        refresh_token: refresh,
-        client_secret: secret,
-        scope: "read"
-      })
-    }).then((data) => {
-      const access = data.access_token;
-      if (!access) throw new Error("token");
-      statusEl.textContent = "Reading accounts…";
-      return tastyFetch("/customers/me/accounts", {
-        headers: { Accept: "application/json", Authorization: "Bearer " + access }
-      }).then((payload) => ({ access: access, payload: payload }));
-    }).then((got) => {
-      const items = (got.payload.data && got.payload.data.items) || [];
-      const seen = {};
-      const accounts = [];
-      items.forEach((row) => {
-        const account = row.account || row;
-        const number = text(account["account-number"] || account.account_number);
-        if (!number || account["is-closed"] === true) return;
-        let name = text(account.nickname || account["account-type-name"]) || "Account";
-        if (seen[name]) name = name + " " + number.slice(-4);
-        seen[name] = true;
-        accounts.push({ number: number, name: name });
-      });
-      if (!accounts.length) {
-        statusEl.textContent = "tastytrade returned no open accounts.";
-        return null;
+  function readableMessage(block) {
+    const splitAt = block.indexOf("\n\n");
+    if (splitAt < 0) return plainMail(block);
+    const headers = block.slice(0, splitAt);
+    let body = decodeBody(block.slice(splitAt + 2), headerValue(headers, "Content-Transfer-Encoding"));
+    const type = headerValue(headers, "Content-Type");
+    const boundary = type.match(/boundary="?([^";\s]+)"?/i);
+    if (boundary) {
+      const fence = boundary[1].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const parts = body.split(new RegExp("\\n--" + fence));
+      const plain = parts.map(textPart).find(Boolean);
+      body = plain || parts.map((part) => part).join("\n");
+    }
+    if (/<[a-z][\s\S]*>/i.test(body)) body = plainMail(body);
+    return headers + "\n\n" + body;
+  }
+
+  function messagesOf(raw) {
+    const text = raw.replace(/\r\n/g, "\n").replace(/\r/g, "").replace(/^\uFEFF/, "");
+    const parts = text.split(/\n(?=From:\s*\S)|\n(?=From\s+[^\s:])/i);
+    return parts.map((part) => readableMessage(part.trim())).filter(Boolean);
+  }
+
+  function messageDate(block) {
+    const match = block.match(/^Date:\s*(.+)$/im);
+    if (!match) return null;
+    const date = new Date(match[1]);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  function recentEnough(date) {
+    if (!date) return true;
+    const cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    cutoff.setDate(cutoff.getDate() - 10);
+    return date >= cutoff;
+  }
+
+  function actionOf(line) {
+    const sample = line.toLowerCase();
+    if (/sell to close|sold to close|\bstc\b/.test(sample)) return { side: "long", closed: true };
+    if (/buy to close|bought to close|\bbtc\b/.test(sample)) return { side: "short", closed: true };
+    if (/sell to open|sold to open|\bsto\b|\bsold\b|\bsell\b/.test(sample)) return { side: "short", closed: false };
+    if (/buy to open|bought to open|\bbto\b|\bbought\b|\bbuy\b|\bbot\b/.test(sample)) return { side: "long", closed: false };
+    return null;
+  }
+
+  function qtyOf(line) {
+    const match = line.match(/(?:open|close|bought|sold|buy|sell|bot|sto|bto|stc|btc)\s+(\d+(?:\.\d+)?)/i);
+    return match ? Number(match[1]) : 1;
+  }
+
+  function symbolOf(line) {
+    const skip = /^(buy|sell|sold|bought|bot|sto|bto|stc|btc|to|open|close|shares|share|of|the|a|an|call|calls|put|puts|cash|secured|covered|jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|you|your|for|at|on|in|and|or|was|were|filled|order|trade|confirmation|account|contract|contracts|option|options|price|limit|market|from|subject|date|this|that|with|have|has|been|executed|avg|average|debit|credit|exp|expiration|we|our|is|it|be|as|by|per)$/i;
+    const words = line.match(/\b[A-Za-z]{1,6}\b/g) || [];
+    const caps = words.find((word) => /^[A-Z]{1,5}$/.test(word) && !skip.test(word));
+    if (caps) return caps;
+    const found = words.find((word) => !skip.test(word));
+    return found ? found.toUpperCase() : "";
+  }
+
+  function dateOf(blob) {
+    let match = blob.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (match) return match[1] + "-" + match[2] + "-" + match[3];
+    match = blob.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
+    if (match) {
+      const year = match[3].length === 2 ? "20" + match[3] : match[3];
+      return year + "-" + pad(match[1]) + "-" + pad(match[2]);
+    }
+    match = blob.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})/i);
+    if (match) return match[3] + "-" + MONTHS[match[1].slice(0, 3).toLowerCase()] + "-" + pad(match[2]);
+    return "";
+  }
+
+  function strikeOf(blob) {
+    const before = blob.match(/(\d+(?:\.\d+)?)\s*(call|put)\b/i);
+    if (before) return Number(before[1]);
+    const after = blob.match(/\b(call|put)\s+(\d+(?:\.\d+)?)/i);
+    return after ? Number(after[2]) : null;
+  }
+
+  function rowFrom(action, symbol, kind, strike, expiration, qty, cash) {
+    return {
+      side: action.side,
+      kind: kind,
+      quantity: qty,
+      strike: strike,
+      expiration: expiration,
+      symbol: symbol,
+      underlying_symbol: symbol,
+      cash_secured: cash,
+      closed: action.closed
+    };
+  }
+
+  function legsIn(block) {
+    const legs = [];
+    block.split("\n").forEach((line) => {
+      const occMatch = line.toUpperCase().match(/([A-Z]{1,6})\s*(\d{2})(\d{2})(\d{2})([CP])(\d{8})/);
+      if (occMatch) {
+        const parsed = occOf(occMatch[1] + occMatch[2] + occMatch[3] + occMatch[4] + occMatch[5] + occMatch[6]);
+        const action = actionOf(line) || { side: "long", closed: false };
+        if (parsed) {
+          legs.push(rowFrom(action, parsed.root, parsed.kind, parsed.strike, parsed.expiration, qtyOf(line), /cash[-\s]?secured|cash[-\s]?covered/i.test(line)));
+          return;
+        }
       }
-      statusEl.textContent = "Reading open positions…";
-      return Promise.all(accounts.map((account) => {
-        return positionPages(got.access, account.number, 0, []).then((rows) => {
-          rows.forEach((row) => { row["account-label"] = account.name; });
-          return rows;
-        });
-      }));
-    }).then((lists) => {
-      if (!lists) return;
-      render(groupRows(lists.reduce((all, rows) => all.concat(rows), [])));
-    }).catch((err) => {
+      if (/\bshares?\b/i.test(line) && !/\b(call|put)\b/i.test(line)) {
+        const share = line.match(/\b(\d+(?:\.\d+)?)\s+shares?\s+(?:of\s+)?([A-Za-z]{1,6})\b/i);
+        const action = actionOf(line);
+        if (share && action) {
+          legs.push(rowFrom(action, share[2].toUpperCase(), "stock", null, "", Number(share[1]), false));
+          return;
+        }
+      }
+      if (!/\b(call|put)\b/i.test(line)) return;
+      const action = actionOf(line);
+      const symbol = symbolOf(line);
+      if (!action || !symbol) return;
+      const kind = /put/i.test(line) ? "put" : "call";
+      legs.push(rowFrom(action, symbol, kind, strikeOf(line), dateOf(line), qtyOf(line), /cash[-\s]?secured|cash[-\s]?covered/i.test(line)));
+    });
+    return legs;
+  }
+
+  function sampleMail() {
+    const sent = new Date();
+    sent.setDate(sent.getDate() - 1);
+    const stamp = sent.toUTCString();
+    return [
+      "From: confirms@example.com",
+      "Date: " + stamp,
+      "Subject: Trade confirmation",
+      "",
+      "Bought 100 shares of KO",
+      "Sell to open 1 KO Nov 20 2026 75 Call",
+      "",
+      "From: confirms@example.com",
+      "Date: " + stamp,
+      "Subject: Trade confirmation",
+      "",
+      "Sell to open 1 KO 55 Put 2026-11-20 cash secured"
+    ].join("\n");
+  }
+
+  function gmailUrl(address) {
+    const query = "newer_than:10d (confirmation OR filled OR \"to open\" OR \"trade confirmation\")";
+    const mail = "https://mail.google.com/mail/u/0/#search/" + encodeURIComponent(query);
+    return "https://accounts.google.com/AccountChooser?Email=" + encodeURIComponent(address) + "&continue=" + encodeURIComponent(mail);
+  }
+
+  function outlookUrl(address) {
+    const query = "received>=today-10days trade confirmation";
+    return "https://outlook.live.com/mail/0/search?q=" + encodeURIComponent(query) + "&login_hint=" + encodeURIComponent(address);
+  }
+
+  function openMailbox(url) {
+    const address = emailInput.value.trim();
+    if (!validEmail(address)) {
+      statusEl.textContent = "Type the email address to open.";
+      emailInput.focus();
+      return;
+    }
+    const tab = window.open(url(address), "_blank");
+    if (tab) tab.opener = null;
+    statusEl.textContent = tab
+      ? "The mailbox is open in a new tab, searched for trade mail from the last 10 days. Paste those messages below, or choose the email files, then read the trades. The address was not saved."
+      : "The browser blocked the mailbox tab. Allow pop-ups for this page, then open the mailbox again.";
+  }
+
+  function readMail(raw) {
+    const messages = messagesOf(raw);
+    const fresh = messages.filter((message) => recentEnough(messageDate(message)));
+    if (!fresh.length) {
       results.replaceChildren();
-      statusEl.textContent = tastyError(err);
+      statusEl.textContent = messages.length
+        ? "Those messages are older than 10 days."
+        : "Paste the trade emails from the mailbox, or choose the files.";
+      return;
+    }
+    const groups = [];
+    fresh.forEach((message) => {
+      const legs = legsIn(message);
+      const opening = legs.filter((leg) => !leg.closed);
+      const used = opening.length ? opening : legs;
+      if (!used.length) return;
+      groupRows(used).forEach((group) => groups.push(group));
     });
+    if (!groups.length) {
+      results.replaceChildren();
+      statusEl.textContent = "Those messages did not include a stock or option fill this page could read. Include the buy or sell, the symbol, and for an option the strike and whether it is a call or a put.";
+      return;
+    }
+    const skipped = messages.length - fresh.length;
+    render(groups);
+    if (skipped) statusEl.textContent += " Older mail was left out.";
+  }
+
+  function readPaste(raw) {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      results.replaceChildren();
+      statusEl.textContent = "Open the mailbox, then paste the trade emails from the last 10 days or choose the files.";
+      return;
+    }
+    if (trimmed.charAt(0) === "{" || trimmed.charAt(0) === "[") {
+      try {
+        readJson(trimmed);
+        return;
+      } catch (err) {
+        statusEl.textContent = "That paste is not JSON the reader could use.";
+        return;
+      }
+    }
+    readMail(trimmed);
   }
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    results.replaceChildren();
-    const pasted = pasteInput.value.trim();
-    if (!pasted) {
-      statusEl.textContent = "Paste the JSON, or use Read tastytrade.";
-      return;
-    }
-    try {
-      readJson(pasted);
-    } catch (err) {
-      statusEl.textContent = "That paste is not JSON the reader could use.";
+    readPaste(pasteInput.value);
+  });
+
+  openBtn.addEventListener("click", () => openMailbox(gmailUrl));
+  outlookBtn.addEventListener("click", () => openMailbox(outlookUrl));
+
+  emailInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      openBtn.click();
     }
   });
 
-  tastyBtn.addEventListener("click", () => {
-    const secret = secretInput.value.trim();
-    const refresh = refreshInput.value.trim();
-    if (!secret || !refresh) {
-      results.replaceChildren();
-      statusEl.textContent = "Paste both the client secret and the refresh token.";
-      return;
-    }
-    readTasty(secret, refresh);
+  chooseBtn.addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", () => {
+    const files = Array.from(fileInput.files || []);
+    if (!files.length) return;
+    Promise.all(files.map((file) => file.text())).then((texts) => {
+      pasteInput.value = texts.join("\n\n");
+      readPaste(pasteInput.value);
+      fileInput.value = "";
+    });
   });
 
-  [secretInput, refreshInput].forEach((input) => {
-    input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        tastyBtn.click();
-      }
+  pasteInput.addEventListener("dragover", (event) => {
+    event.preventDefault();
+  });
+
+  pasteInput.addEventListener("drop", (event) => {
+    const files = Array.from(event.dataTransfer.files || []);
+    if (!files.length) return;
+    event.preventDefault();
+    Promise.all(files.map((file) => file.text())).then((texts) => {
+      pasteInput.value = texts.join("\n\n");
+      readPaste(pasteInput.value);
     });
   });
 
   sampleBtn.addEventListener("click", () => {
-    pasteInput.value = JSON.stringify(SAMPLE, null, 2);
-    statusEl.textContent = "Sample loaded. These are the lesson’s Coca-Cola shapes, not an account.";
+    pasteInput.value = sampleMail();
+    statusEl.textContent = "Sample loaded. These are the lesson’s Coca-Cola shapes, written as mail, not an account.";
     pasteInput.focus();
   });
 })();
