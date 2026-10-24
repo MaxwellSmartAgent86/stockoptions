@@ -1007,6 +1007,24 @@
     "iron-condor": true, "straddle": true, "strangle": true, "calendar": true
   };
 
+  const PAYOFF_FACE = {
+    "long-call": ["Long call", "#00bc74"],
+    "long-put": ["Long put", "#9874fc"],
+    "covered-call": ["Covered call", "#44bcfc"],
+    "cash-secured-put": ["Cash secured put", "#fc7c20"],
+    "wheel": ["The wheel", "#fc7c20"],
+    "protective-put": ["Protective put", "#fc6cbc"],
+    "bull-call": ["Bull call spread", "#2cf8a8"],
+    "bear-put": ["Bear put spread", "#fc3034"],
+    "iron-condor": ["Iron condor", "#bc7800"],
+    "straddle": ["Straddle", "#2888fc"],
+    "strangle": ["Strangle", "#fc7c20"],
+    "calendar": ["Calendar spread", "#04b878"],
+    "short-put": ["Short puts", "#fc7c20"],
+    "put-credit": ["Put credit spread", "#2cf8a8"],
+    "call-credit": ["Call credit spread", "#fc3034"]
+  };
+
   const GLOSSARY = {
     "one usual 20-session moves": "The size of an ordinary 20-session move, set by realized volatility. The lesson’s hard rise or hard drop finishes outside one of these.",
     "one usual 20-session move": "The size of an ordinary 20-session move, set by realized volatility. The lesson’s hard rise or hard drop finishes outside one of these.",
@@ -1251,12 +1269,18 @@
     svg.append(svgEl("polygon", { points: points, fill: "var(--color-ink)" }));
   }
 
+  function payoffFace(id, name) {
+    const face = PAYOFF_FACE[id];
+    if (face) return { label: face[0], pill: face[1] };
+    return { label: name, pill: "" };
+  }
+
   function drawPayoff(host, id, prefix, name) {
     host.replaceChildren();
     const points = SHAPES[id];
     if (!points) {
       host.hidden = true;
-      return;
+      return false;
     }
     host.hidden = false;
     const left = 52;
@@ -1292,12 +1316,12 @@
       if (sameSide) {
         const sign = a.v > 0 || b.v > 0 ? 1 : -1;
         if (a.v === 0 && b.v === 0) continue;
-        poly([a, b, { x: b.x, y: zero }, { x: a.x, y: zero }], sign > 0 ? "var(--color-gain-wash)" : "var(--color-loss-wash)");
+        poly([a, b, { x: b.x, y: zero }, { x: a.x, y: zero }], sign > 0 ? "#c6ead8" : "#f6c6c6");
       } else {
         const t = (0 - a.v) / (b.v - a.v);
         const mid = { x: a.x + t * (b.x - a.x), y: zero, v: 0 };
-        poly([a, mid, { x: a.x, y: zero }], a.v > 0 ? "var(--color-gain-wash)" : "var(--color-loss-wash)");
-        poly([mid, b, { x: b.x, y: zero }], b.v > 0 ? "var(--color-gain-wash)" : "var(--color-loss-wash)");
+        poly([a, mid, { x: a.x, y: zero }], a.v > 0 ? "#c6ead8" : "#f6c6c6");
+        poly([mid, b, { x: b.x, y: zero }], b.v > 0 ? "#c6ead8" : "#f6c6c6");
       }
     }
     plot.append(svgEl("path", {
@@ -1308,9 +1332,10 @@
       "stroke-linejoin": "round",
       "stroke-linecap": "round"
     }));
+    svg.append(svgEl("circle", { cx: "110", cy: "108", r: "84", fill: "#fff" }));
     svg.append(plot);
     svg.append(svgEl("circle", {
-      cx: "110", cy: "108", r: "86", fill: "none", stroke: "var(--color-ink)", "stroke-width": "3"
+      cx: "110", cy: "108", r: "86", fill: "none", stroke: "var(--color-ink)", "stroke-width": "4"
     }));
     const axisX = left + 4;
     svg.append(svgEl("line", {
@@ -1325,6 +1350,7 @@
     }));
     payoffArrow(svg, right, zero, 1, 0);
     host.append(svg);
+    return true;
   }
 
   function textWidth(text) {
@@ -1980,15 +2006,23 @@
       setLinked(why, "The structure the legs make is " + label + ". " + whyBody);
       const guess = el("p", "guess");
       setLinked(guess, tapeGuess(group, id));
-      const slotFig = el("figure", "strategy-slot");
-      slotFig.id = prefix + "-picture";
+      const intro = el("figure", "payoff-intro");
+      intro.id = prefix + "-picture";
       const payoff = el("div", "fit");
-      drawPayoff(payoff, id, prefix, trade.name);
-      const slotCaption = el("figcaption");
+      const drawn = drawPayoff(payoff, id, prefix, trade.name);
       const slotNote = el("p", "slot-note");
       setLinked(slotNote, shapeNote(id, group.legs));
-      slotCaption.append(el("p", "slot-name", trade.name), slotNote);
-      slotFig.append(payoff, slotCaption);
+      if (drawn) {
+        const face = payoffFace(id, trade.name);
+        const shape = el("div", "payoff-mark");
+        const pill = el("p", "payoff-pill", face.label);
+        if (face.pill) pill.style.setProperty("--pill", face.pill);
+        shape.append(payoff, pill);
+        intro.append(shape, slotNote);
+      } else {
+        intro.classList.add("payoff-intro-plain");
+        intro.append(slotNote);
+      }
       const figure = el("figure", "proof-mini");
       const band = el("div", "band");
       const settle = el("div", "settle");
@@ -2048,7 +2082,7 @@
       body.hidden = true;
       const story = el("div", "position-story");
       const notes = el("div", "position-notes");
-      story.append(slotFig, legs, el("h3", "", "What the legs are"), what, el("h3", "", "The goal"), goal);
+      story.append(legs, el("h3", "", "What the legs are"), what, el("h3", "", "The goal"), goal);
       if (trade.id && trade.where) story.append(el("h3", "", "Where the lesson uses it"), where);
       story.append(
         el("h3", "", "Why this was chosen"),
@@ -2067,7 +2101,7 @@
         alts.append(li);
       });
       notes.append(el("h3", "", "Other strategies that could be used"), alts.childElementCount ? alts : el("p", "", "The lesson does not name another strategy for this shape."));
-      body.append(figure, story, notes);
+      body.append(intro, figure, story, notes);
       article.append(head, body);
       toggle.addEventListener("click", () => {
         setOpen(article, body.hidden);

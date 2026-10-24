@@ -374,6 +374,7 @@ label {
     display: none;
   }
 
+  .payoff-intro,
   .proof-mini {
     grid-column: 1 / -1;
   }
@@ -420,39 +421,62 @@ label {
   font-weight: 600;
 }
 
-.strategy-slot {
-  display: grid;
-  grid-template-columns: 11rem minmax(0, 1fr);
-  gap: var(--space-md);
-  align-items: center;
-  margin-top: var(--space-md);
-  min-height: 11rem;
+.payoff-intro {
+  margin: 0 0 var(--space-lg);
 }
 
-.strategy-slot figcaption,
-.slot-name,
-.slot-note {
+.payoff-mark {
+  width: min(100%, 15.5rem);
+}
+
+.payoff-intro .fit {
   margin: 0;
+  max-width: none;
 }
 
-.slot-name {
+.payoff-intro .fit-svg {
+  width: 100%;
+}
+
+.payoff-pill {
+  margin: 0.4rem 0 0;
+  width: 100%;
+  padding: 0.32rem 0.55rem 0.36rem;
+  border-radius: 999px;
+  background: var(--pill, var(--color-ink));
+  color: #fff;
+  font-family: var(--font-body);
   font-weight: 600;
+  font-size: 0.92rem;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+  -webkit-text-stroke: 0.14em #111;
+  paint-order: stroke fill;
 }
 
 .slot-note {
-  margin-top: var(--space-2xs);
-  max-width: 42ch;
+  margin: var(--space-sm) 0 0;
+  max-width: 62ch;
 }
 
-.strategy-slot .fit,
-.proof-mini .fit {
-  margin: 0;
-  max-width: 11rem;
-}
+@media (min-width: 56rem) {
+  .payoff-intro {
+    display: grid;
+    grid-template-columns: 15.5rem minmax(0, 1fr);
+    column-gap: clamp(1.5rem, 3vw, 3rem);
+    align-items: center;
+  }
 
-.strategy-slot .fit-svg,
-.proof-mini .fit-svg {
-  width: min(100%, 11rem);
+  .payoff-intro .slot-note {
+    margin-top: 0;
+  }
+
+  .payoff-intro.payoff-intro-plain {
+    display: block;
+  }
 }
 
 .term {
@@ -637,11 +661,7 @@ a.term-btn {
   background: var(--color-paper-2);
 }
 
-@media (max-width: 40rem) {
-  .strategy-slot {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
+
 
 .term-list {
   display: flex;
