@@ -1455,9 +1455,9 @@
     const pad = (hi - lo) * 0.1;
     lo -= pad;
     hi += pad;
-    const width = 300;
+    const width = 420;
     const plotL = 16;
-    const plotR = 284;
+    const plotR = 404;
     function X(price) { return plotL + (price - lo) / (hi - lo) * (plotR - plotL); }
     const strikeCount = {};
     options.forEach((leg) => {
@@ -1485,14 +1485,14 @@
     });
     zoom.sort((a, b) => a.leg.strike - b.leg.strike || (a.leg.kind === "put" ? -1 : 1));
 
-    const axisY = move ? 158 : 70;
+    const axisY = move ? 124 : 56;
     const bandH = 22;
     const bandTop = axisY - bandH / 2;
     const bandBottom = axisY + bandH / 2;
     const stripH = 9;
-    const stripTop = bandBottom + 3;
+    const stripTop = bandBottom + 2;
     const stripBottom = stripTop + stripH;
-    const labelPitch = 26;
+    const labelPitch = 22;
     let inset = null;
     if (zoom.length) {
       const strikes = zoom.map((mark) => mark.leg.strike);
@@ -1538,17 +1538,17 @@
     let calloutTop = 0;
     if (inset && (leftFit || rightFit)) {
       const besideRows = Math.max(leftFit ? leftFit.rows : 0, rightFit ? rightFit.rows : 0);
-      calloutTop = stripBottom + 8;
-      funnelTop = stripBottom + 4;
-      funnelNeck = calloutTop + besideRows * labelPitch + 6;
-      funnelBottom = funnelNeck + 22;
+      calloutTop = stripBottom + 4;
+      funnelTop = stripBottom + 2;
+      funnelNeck = calloutTop + besideRows * labelPitch + 4;
+      funnelBottom = funnelNeck + 16;
       insetTop = funnelBottom;
       insetBottom = insetTop + inset.h;
       cursor = insetBottom + 8;
     } else if (inset) {
       funnelTop = cursor;
       funnelNeck = funnelTop;
-      funnelBottom = funnelTop + 26;
+      funnelBottom = funnelTop + 16;
       insetTop = funnelBottom;
       insetBottom = insetTop + inset.h;
       cursor = insetBottom + 2;
@@ -1695,7 +1695,7 @@
       }));
       paintLabel(text, x + w / 2, top + 15, "middle", ink, "12");
       const tickX = Math.max(x + 7, Math.min(x + w - 7, anchorX));
-      addLine(tickX, top + h, tickX, top + h + 12, tick, 1.75);
+      addLine(tickX, top + h, tickX, top + h + 8, tick, 1.75);
     }
     function paintLegend(mult, name, top, fill, ink, tick) {
       const xL = X(spot - mult * move);
@@ -1723,14 +1723,14 @@
       paintChip(rightText, cR, xR, top, fill, ink, tick);
     }
     if (move) {
-      paintLegend(2, "2SD", 2, "var(--color-sd-2)", "var(--color-sd-2-ink)", "var(--color-sd-2-ink)");
-      paintLegend(1, "1SD", 44, "var(--color-sd-1)", "var(--color-paper)", "var(--color-sd-1)");
+      paintLegend(2, "2SD", 0, "var(--color-sd-2)", "var(--color-sd-2-ink)", "var(--color-sd-2-ink)");
+      paintLegend(1, "1SD", 32, "var(--color-sd-1)", "var(--color-paper)", "var(--color-sd-1)");
     }
     const spotX = X(spot);
-    const priceY = move ? 124 : 44;
+    const priceY = move ? 100 : 36;
     const capAnchor = spotX < 70 ? "start" : (spotX > width - 70 ? "end" : "middle");
     paintLabel(money(spot), spotX, priceY, spotX < 56 ? "start" : (spotX > width - 56 ? "end" : "middle"), "var(--color-ink)");
-    paintLabel("(Current Price)", spotX, move ? 100 : 14, capAnchor, "var(--color-muted)", "11", "IBM Plex Sans, sans-serif");
+    paintLabel("(Current Price)", spotX, move ? 78 : 14, capAnchor, "var(--color-muted)", "11", "IBM Plex Sans, sans-serif");
     paintZones(X, bandTop, bandH, lo, hi);
     paintOutcome(X, stripTop, stripH, lo, hi);
     addLine(plotL, axisY, plotR, axisY, "var(--color-ink)", 1.25);
@@ -1988,7 +1988,11 @@
       }
       const sd1Line = whereLine("sd1", "One standard deviation is the lesson’s usual range. ", sd1);
       const sd2Line = whereLine("sd2", "Two standard deviations are the wider band. ", sd2);
-      figure.append(band, settle, outcome, read, sd1Line, sd2Line, terms);
+      const proofGrid = el("div", "proof-grid");
+      const proofCopy = el("div", "proof-copy");
+      proofCopy.append(settle, outcome, read, sd1Line, sd2Line, terms);
+      proofGrid.append(band, proofCopy);
+      figure.append(el("h3", "", "Where this fill sits"), proofGrid);
       const slot = { guess: guess, group: group, id: id, prefix: prefix, band: band, settle: settle, outcome: outcome, sd1: sd1, sd2: sd2, read: read };
       paintFacts(slot, undefined);
       const head = el("div", "position-head");
@@ -2007,7 +2011,7 @@
       body.id = prefix + "-body";
       body.hidden = true;
       const story = el("div", "position-story");
-      const sit = el("div", "position-sit");
+      const notes = el("div", "position-notes");
       story.append(slotFig, legs, el("h3", "", "What the legs are"), what, el("h3", "", "The goal"), goal);
       if (trade.id && trade.where) story.append(el("h3", "", "Where the lesson uses it"), where);
       story.append(
@@ -2016,7 +2020,6 @@
         el("h3", "", "Best guess"),
         guess
       );
-      sit.append(el("h3", "", "Where this fill sits"), figure);
       const alts = el("ul", "alts");
       (trade.switches || []).forEach((item) => {
         const li = document.createElement("li");
@@ -2027,8 +2030,8 @@
         li.append(termControl(name, about, "index.html#" + item.id), rest);
         alts.append(li);
       });
-      sit.append(el("h3", "", "Other strategies that could be used"), alts.childElementCount ? alts : el("p", "", "The lesson does not name another strategy for this shape."));
-      body.append(story, sit);
+      notes.append(el("h3", "", "Other strategies that could be used"), alts.childElementCount ? alts : el("p", "", "The lesson does not name another strategy for this shape."));
+      body.append(figure, story, notes);
       article.append(head, body);
       toggle.addEventListener("click", () => {
         setOpen(article, body.hidden);
