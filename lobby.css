@@ -540,8 +540,12 @@ a.term-btn {
   scroll-margin-top: 0.5rem;
 }
 
-.proof-mini > h3 {
+.proof-chart > h3 {
   margin-top: 0;
+}
+
+.proof-chart .settle {
+  margin-top: var(--space-sm);
 }
 
 .proof-grid {

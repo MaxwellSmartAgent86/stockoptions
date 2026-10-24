@@ -1400,8 +1400,7 @@
   function fitCallouts(marks, left, right) {
     function apply(wide) {
       const items = marks.map((mark) => {
-        const brief = mark.leg.strike + " " + mark.leg.kind;
-        const text = wide ? mark.leg.side + " " + brief : brief;
+        const text = mark.leg.strike + " " + mark.leg.kind;
         return {
           leg: mark.leg,
           text: text,
@@ -1580,7 +1579,7 @@
     } else if (inset) {
       funnelTop = cursor;
       funnelNeck = funnelTop;
-      funnelBottom = funnelTop + 16;
+      funnelBottom = funnelTop + 28;
       insetTop = funnelBottom;
       insetBottom = insetTop + inset.h;
       cursor = insetBottom + 2;
@@ -2021,10 +2020,12 @@
       const sd1Line = whereLine("sd1", "One standard deviation is the lesson’s usual range. ", sd1);
       const sd2Line = whereLine("sd2", "Two standard deviations are the wider band. ", sd2);
       const proofGrid = el("div", "proof-grid");
+      const proofChart = el("div", "proof-chart");
       const proofCopy = el("div", "proof-copy");
-      proofCopy.append(settle, outcome, read, sd1Line, sd2Line, terms);
-      proofGrid.append(band, proofCopy);
-      figure.append(el("h3", "", "Where this fill sits"), proofGrid);
+      proofChart.append(el("h3", "", "Where this fill sits"), band, settle);
+      proofCopy.append(outcome, read, sd1Line, sd2Line, terms);
+      proofGrid.append(proofChart, proofCopy);
+      figure.append(proofGrid);
       const slot = { guess: guess, group: group, id: id, prefix: prefix, band: band, settle: settle, outcome: outcome, sd1: sd1, sd2: sd2, read: read };
       paintFacts(slot, undefined);
       const head = el("div", "position-head");
