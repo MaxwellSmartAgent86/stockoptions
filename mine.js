@@ -1882,6 +1882,26 @@
     applySort();
   }
 
+  function setOpen(article, open) {
+    const body = article.querySelector(".position-body");
+    const button = article.querySelector(".position-toggle");
+    if (!body || !button) return;
+    body.hidden = !open;
+    button.setAttribute("aria-expanded", open ? "true" : "false");
+    const name = article.querySelector("h2").textContent;
+    button.textContent = open ? "Hide" : "Show";
+    button.setAttribute("aria-label", (open ? "Hide " : "Show ") + name);
+  }
+
+  function paintShowAll() {
+    const button = document.getElementById("show-all");
+    if (!button) return;
+    const bodies = [...results.querySelectorAll(".position-body")];
+    const allOpen = bodies.length > 0 && bodies.every((body) => !body.hidden);
+    button.textContent = allOpen ? "Hide all" : "Show all";
+    button.setAttribute("aria-pressed", allOpen ? "true" : "false");
+  }
+
   function render(groups) {
     const token = ++guessToken;
     results.replaceChildren();
@@ -1967,9 +1987,21 @@
       figure.append(band, settle, outcome, read, sd1Line, sd2Line, terms);
       const slot = { guess: guess, group: group, id: id, prefix: prefix, band: band, settle: settle, outcome: outcome, sd1: sd1, sd2: sd2, read: read };
       paintFacts(slot, undefined);
+      const head = el("div", "position-head");
+      const idBlock = el("div", "position-id");
+      const toggle = el("button", "next position-toggle", "Show");
+      toggle.type = "button";
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.setAttribute("aria-controls", prefix + "-body");
+      toggle.setAttribute("aria-label", "Show " + heading);
+      idBlock.append(title, el("p", "facts", factsLine(group)));
+      head.append(idBlock, toggle);
+      const body = el("div", "position-body");
+      body.id = prefix + "-body";
+      body.hidden = true;
       const story = el("div", "position-story");
       const sit = el("div", "position-sit");
-      story.append(title, el("p", "facts", factsLine(group)), slotFig, legs, el("h3", "", "What the legs are"), what, el("h3", "", "The goal"), goal);
+      story.append(slotFig, legs, el("h3", "", "What the legs are"), what, el("h3", "", "The goal"), goal);
       if (trade.id && trade.where) story.append(el("h3", "", "Where the lesson uses it"), where);
       story.append(
         el("h3", "", "Why this was chosen"),
@@ -1989,7 +2021,12 @@
         alts.append(li);
       });
       sit.append(el("h3", "", "Other strategies that could be used"), alts.childElementCount ? alts : el("p", "", "The lesson does not name another strategy for this shape."));
-      article.append(story, sit);
+      body.append(story, sit);
+      article.append(head, body);
+      toggle.addEventListener("click", () => {
+        setOpen(article, body.hidden);
+        paintShowAll();
+      });
       results.append(article);
       cards.push({
         article: article,
@@ -2001,6 +2038,7 @@
       slots.push(slot);
     });
     applySort();
+    paintShowAll();
     fillGuesses(slots, token);
   }
 
@@ -2596,6 +2634,13 @@
 
   Object.keys(sortButtons).forEach((mode) => {
     sortButtons[mode].addEventListener("click", () => chooseSort(mode));
+  });
+
+  document.getElementById("show-all").addEventListener("click", () => {
+    const bodies = [...results.querySelectorAll(".position-body")];
+    const open = bodies.some((body) => body.hidden);
+    results.querySelectorAll("article.position").forEach((article) => setOpen(article, open));
+    paintShowAll();
   });
 
   sampleBtn.addEventListener("click", () => {

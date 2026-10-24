@@ -269,14 +269,36 @@ label {
 }
 
 .position {
-  margin-top: var(--space-xl);
+  margin-top: 0;
+  padding: var(--space-sm) 0;
   max-width: none;
 }
 
 .position + .position {
-  margin-top: var(--space-lg);
-  padding-top: var(--space-lg);
   border-top: var(--rule);
+}
+
+.position-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm) var(--space-md);
+}
+
+.position-id {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.position-id .facts {
+  margin-top: var(--space-3xs);
+}
+
+.position-body {
+  margin-top: var(--space-md);
+}
+
+.position-body[hidden] {
+  display: none;
 }
 
 .position-story,
@@ -285,11 +307,15 @@ label {
 }
 
 @media (min-width: 56rem) {
-  .position {
+  .position-body {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     column-gap: clamp(1.5rem, 3vw, 3rem);
     align-items: start;
+  }
+
+  .position-body[hidden] {
+    display: none;
   }
 
   .position-sit > :first-child {
