@@ -297,10 +297,39 @@ label {
   min-width: 0;
 }
 
+.position-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.toggle-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--color-ink);
+  background: var(--color-paper);
+  font-family: var(--font-figure);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+}
+
 @media (min-width: 56rem) {
   .position-head {
     display: grid;
-    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 1.85fr) minmax(0, 0.9fr) auto;
+    grid-template-columns: auto minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 1.85fr) minmax(0, 0.9fr);
     align-items: center;
     column-gap: clamp(1rem, 2vw, 2.5rem);
   }
@@ -317,14 +346,11 @@ label {
   .position-fact + .position-fact {
     margin-top: 0;
   }
-
-  .position-head .position-toggle {
-    justify-self: end;
-  }
 }
 
 .position-body {
   margin-top: var(--space-md);
+  padding-left: 44px;
 }
 
 .position-body[hidden] {

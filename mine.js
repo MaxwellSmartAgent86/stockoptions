@@ -1893,7 +1893,7 @@
     body.hidden = !open;
     button.setAttribute("aria-expanded", open ? "true" : "false");
     const name = article.querySelector("h2").textContent;
-    button.textContent = open ? "Hide" : "Show";
+    button.querySelector(".toggle-mark").textContent = open ? "\u2212" : "+";
     button.setAttribute("aria-label", (open ? "Hide " : "Show ") + name);
   }
 
@@ -1997,16 +1997,19 @@
       paintFacts(slot, undefined);
       const head = el("div", "position-head");
       const idBlock = el("div", "position-id");
-      const toggle = el("button", "next position-toggle", "Show");
+      const toggle = el("button", "position-toggle");
       toggle.type = "button";
       toggle.setAttribute("aria-expanded", "false");
       toggle.setAttribute("aria-controls", prefix + "-body");
       toggle.setAttribute("aria-label", "Show " + heading);
+      const mark = el("span", "toggle-mark", "+");
+      mark.setAttribute("aria-hidden", "true");
+      toggle.append(mark);
       const parts = factParts(group);
       const facts = el("div", "position-facts");
       facts.append(el("p", "position-fact", parts.opened), el("p", "position-fact", parts.expires), el("p", "position-fact", parts.result));
       idBlock.append(title, facts);
-      head.append(idBlock, toggle);
+      head.append(toggle, idBlock);
       const body = el("div", "position-body");
       body.id = prefix + "-body";
       body.hidden = true;
