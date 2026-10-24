@@ -273,6 +273,12 @@ label {
   max-width: none;
 }
 
+.position + .position {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: var(--rule);
+}
+
 .position-story,
 .position-sit {
   min-width: 0;
