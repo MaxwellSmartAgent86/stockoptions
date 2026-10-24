@@ -30,7 +30,7 @@ def dedupe(bars):
 
 
 def yahoo_bars(symbol):
-    url = "https://query1.finance.yahoo.com/v8/finance/chart/" + urllib.parse.quote(symbol) + "?range=6mo&interval=1d"
+    url = "https://query1.finance.yahoo.com/v8/finance/chart/" + urllib.parse.quote(symbol) + "?range=2y&interval=1d"
     request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"})
     with urllib.request.urlopen(request, timeout=15) as response:
         payload = json.loads(response.read().decode())
@@ -50,11 +50,11 @@ def yahoo_bars(symbol):
 
 
 def nasdaq_bars(symbol, asset):
-    start = (date.today() - timedelta(days=220)).isoformat()
+    start = (date.today() - timedelta(days=800)).isoformat()
     end = date.today().isoformat()
     url = (
         "https://api.nasdaq.com/api/quote/" + urllib.parse.quote(symbol)
-        + "/historical?assetclass=" + asset + "&fromdate=" + start + "&todate=" + end + "&limit=200"
+        + "/historical?assetclass=" + asset + "&fromdate=" + start + "&todate=" + end + "&limit=600"
     )
     request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"})
     with urllib.request.urlopen(request, timeout=15) as response:

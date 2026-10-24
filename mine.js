@@ -921,19 +921,51 @@
   const quoteWait = [];
   let quoteActive = 0;
 
+  function barsFromYahoo(payload) {
+    const result = (((payload || {}).chart || {}).result || [null])[0] || {};
+    const stamps = result.timestamp || [];
+    const closes = (((result.indicators || {}).quote || [{}])[0].close) || [];
+    const chosen = {};
+    for (let i = 0; i < stamps.length; i++) {
+      const stamp = stamps[i];
+      const close = closes[i];
+      if (stamp == null || close == null || !(close > 0)) continue;
+      const date = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/New_York",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }).format(new Date(stamp * 1000));
+      chosen[date] = Math.round(close * 10000) / 10000;
+    }
+    return Object.keys(chosen).sort().map((date) => ({ date: date, close: chosen[date] }));
+  }
+
+  function keepBars(bars) {
+    return bars && bars.length >= 8 ? bars : null;
+  }
+
   function loadBars(symbol) {
     if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(symbol)) return Promise.resolve(null);
     if (Object.prototype.hasOwnProperty.call(quoteCache, symbol)) return Promise.resolve(quoteCache[symbol]);
+    function remember(bars) {
+      const kept = keepBars(bars);
+      if (kept) quoteCache[symbol] = kept;
+      return kept;
+    }
+    function fromYahoo() {
+      const yahoo = "https://query1.finance.yahoo.com/v8/finance/chart/" + encodeURIComponent(symbol) + "?range=2y&interval=1d";
+      return fetch("https://proxy.cors.dev/" + yahoo, { signal: AbortSignal.timeout(15000) }).then((response) => {
+        if (!response.ok) throw new Error("status");
+        return response.json();
+      }).then((payload) => remember(barsFromYahoo(payload))).catch(() => null);
+    }
     function start() {
       quoteActive += 1;
       return fetch("quote?symbol=" + encodeURIComponent(symbol)).then((response) => {
         if (!response.ok) throw new Error("status");
         return response.json();
-      }).then((data) => {
-        const bars = data && Array.isArray(data.bars) && data.bars.length >= 8 ? data.bars : null;
-        if (bars) quoteCache[symbol] = bars;
-        return bars;
-      }).catch(() => null).then((bars) => {
+      }).then((data) => remember(data && data.bars)).catch(() => fromYahoo()).then((bars) => {
         quoteActive -= 1;
         const next = quoteWait.shift();
         if (next) next();
