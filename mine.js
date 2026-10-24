@@ -1821,21 +1821,25 @@
     });
   }
 
-  function factsLine(group) {
-    const parts = [];
+  function factParts(group) {
+    let opened = "";
     if (group.tape && group.tape.daysOpen != null) {
       const days = group.tape.daysOpen;
-      parts.push("Opened " + days + (days === 1 ? " day" : " days") + " ago");
+      opened = "Opened " + days + (days === 1 ? " day" : " days") + " ago";
     } else {
       const iso = whenISO(group.when);
-      if (iso) parts.push("Opened " + prettyISO(iso));
+      if (iso) opened = "Opened " + prettyISO(iso);
     }
     const dates = expirationDates(group.legs);
-    if (dates.length === 1) parts.push("Expires " + prettyISO(dates[0]));
-    else if (dates.length > 1) parts.push("Expires " + dates.map(prettyISO).join(", then "));
+    let expires = "";
+    if (dates.length === 1) expires = "Expires " + prettyISO(dates[0]);
+    else if (dates.length > 1) expires = "Expires " + dates.map(prettyISO).join(", then ");
     const result = groupResult(group);
-    parts.push(result == null ? "No result in the file" : "Result " + signedMoney(result));
-    return parts.join(" · ");
+    return {
+      opened: opened,
+      expires: expires,
+      result: result == null ? "No result in the file" : "Result " + signedMoney(result)
+    };
   }
 
   function orderedCards() {
@@ -1994,7 +1998,10 @@
       toggle.setAttribute("aria-expanded", "false");
       toggle.setAttribute("aria-controls", prefix + "-body");
       toggle.setAttribute("aria-label", "Show " + heading);
-      idBlock.append(title, el("p", "facts", factsLine(group)));
+      const parts = factParts(group);
+      const facts = el("div", "position-facts");
+      facts.append(el("p", "position-fact", parts.opened), el("p", "position-fact", parts.expires), el("p", "position-fact", parts.result));
+      idBlock.append(title, facts);
       head.append(idBlock, toggle);
       const body = el("div", "position-body");
       body.id = prefix + "-body";

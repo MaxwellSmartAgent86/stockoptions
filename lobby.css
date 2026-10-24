@@ -254,12 +254,20 @@ label {
   background: var(--color-paper-2);
 }
 
-.facts {
-  margin: var(--space-xs) 0 0;
-  max-width: 62ch;
+.position-facts {
+  margin-top: var(--space-3xs);
+}
+
+.position-fact {
+  margin: 0;
   font-family: var(--font-figure);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+
+.position-fact + .position-fact {
+  margin-top: var(--space-3xs);
 }
 
 .pull,
@@ -289,8 +297,30 @@ label {
   min-width: 0;
 }
 
-.position-id .facts {
-  margin-top: var(--space-3xs);
+@media (min-width: 56rem) {
+  .position-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 1.85fr) minmax(0, 0.9fr) auto;
+    align-items: center;
+    column-gap: clamp(1rem, 2vw, 2.5rem);
+  }
+
+  .position-id,
+  .position-facts {
+    display: contents;
+  }
+
+  .position-facts {
+    margin-top: 0;
+  }
+
+  .position-fact + .position-fact {
+    margin-top: 0;
+  }
+
+  .position-head .position-toggle {
+    justify-self: end;
+  }
 }
 
 .position-body {
