@@ -1485,14 +1485,14 @@
     });
     zoom.sort((a, b) => a.leg.strike - b.leg.strike || (a.leg.kind === "put" ? -1 : 1));
 
-    const axisY = move ? 196 : 70;
+    const axisY = move ? 158 : 70;
     const bandH = 22;
     const bandTop = axisY - bandH / 2;
     const bandBottom = axisY + bandH / 2;
     const stripH = 9;
     const stripTop = bandBottom + 3;
     const stripBottom = stripTop + stripH;
-    const labelPitch = 30;
+    const labelPitch = 26;
     let inset = null;
     if (zoom.length) {
       const strikes = zoom.map((mark) => mark.leg.strike);
@@ -1548,16 +1548,16 @@
     } else if (inset) {
       funnelTop = cursor;
       funnelNeck = funnelTop;
-      funnelBottom = funnelTop + 42;
+      funnelBottom = funnelTop + 26;
       insetTop = funnelBottom;
       insetBottom = insetTop + inset.h;
-      cursor = insetBottom + 4;
+      cursor = insetBottom + 2;
     }
     if (singleFit) {
       calloutTop = cursor + 8;
       cursor = calloutTop + singleFit.rows * labelPitch;
     }
-    const height = Math.max(cursor + 12, bandBottom + 20);
+    const height = Math.max(cursor + 8, bandBottom + 14);
     const aria = (move
       ? "Price band. The deeper blue is one standard deviation, the usual range, from " + money(spot - move) + " to " + money(spot + move) + ". The pale blue is two standard deviations, from " + money(spot - 2 * move) + " to " + money(spot + 2 * move) + ". "
       : "Price band. ")
@@ -1723,14 +1723,14 @@
       paintChip(rightText, cR, xR, top, fill, ink, tick);
     }
     if (move) {
-      paintLegend(2, "2SD", 8, "var(--color-sd-2)", "var(--color-sd-2-ink)", "var(--color-sd-2-ink)");
-      paintLegend(1, "1SD", 62, "var(--color-sd-1)", "var(--color-paper)", "var(--color-sd-1)");
+      paintLegend(2, "2SD", 2, "var(--color-sd-2)", "var(--color-sd-2-ink)", "var(--color-sd-2-ink)");
+      paintLegend(1, "1SD", 44, "var(--color-sd-1)", "var(--color-paper)", "var(--color-sd-1)");
     }
     const spotX = X(spot);
-    const priceY = move ? 170 : 44;
+    const priceY = move ? 124 : 44;
     const capAnchor = spotX < 70 ? "start" : (spotX > width - 70 ? "end" : "middle");
     paintLabel(money(spot), spotX, priceY, spotX < 56 ? "start" : (spotX > width - 56 ? "end" : "middle"), "var(--color-ink)");
-    paintLabel("(Current Price)", spotX, move ? 140 : 14, capAnchor, "var(--color-muted)", "11", "IBM Plex Sans, sans-serif");
+    paintLabel("(Current Price)", spotX, move ? 100 : 14, capAnchor, "var(--color-muted)", "11", "IBM Plex Sans, sans-serif");
     paintZones(X, bandTop, bandH, lo, hi);
     paintOutcome(X, stripTop, stripH, lo, hi);
     addLine(plotL, axisY, plotR, axisY, "var(--color-ink)", 1.25);
@@ -1967,16 +1967,17 @@
       figure.append(band, settle, outcome, read, sd1Line, sd2Line, terms);
       const slot = { guess: guess, group: group, id: id, prefix: prefix, band: band, settle: settle, outcome: outcome, sd1: sd1, sd2: sd2, read: read };
       paintFacts(slot, undefined);
-      article.append(title, el("p", "facts", factsLine(group)), slotFig, legs, el("h3", "", "What the legs are"), what, el("h3", "", "The goal"), goal);
-      if (trade.id && trade.where) article.append(el("h3", "", "Where the lesson uses it"), where);
-      article.append(
+      const story = el("div", "position-story");
+      const sit = el("div", "position-sit");
+      story.append(title, el("p", "facts", factsLine(group)), slotFig, legs, el("h3", "", "What the legs are"), what, el("h3", "", "The goal"), goal);
+      if (trade.id && trade.where) story.append(el("h3", "", "Where the lesson uses it"), where);
+      story.append(
         el("h3", "", "Why this was chosen"),
         why,
         el("h3", "", "Best guess"),
-        guess,
-        el("h3", "", "Where this fill sits"),
-        figure
+        guess
       );
+      sit.append(el("h3", "", "Where this fill sits"), figure);
       const alts = el("ul", "alts");
       (trade.switches || []).forEach((item) => {
         const li = document.createElement("li");
@@ -1987,7 +1988,8 @@
         li.append(termControl(name, about, "index.html#" + item.id), rest);
         alts.append(li);
       });
-      article.append(el("h3", "", "Other strategies that could be used"), alts.childElementCount ? alts : el("p", "", "The lesson does not name another strategy for this shape."));
+      sit.append(el("h3", "", "Other strategies that could be used"), alts.childElementCount ? alts : el("p", "", "The lesson does not name another strategy for this shape."));
+      article.append(story, sit);
       results.append(article);
       cards.push({
         article: article,

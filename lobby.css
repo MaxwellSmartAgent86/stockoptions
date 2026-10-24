@@ -75,7 +75,8 @@ a {
 }
 
 .sheet {
-  max-width: 40rem;
+  max-width: none;
+  width: 100%;
   padding: var(--space-lg) clamp(1rem, 4vw, 1.5rem) var(--space-3xl);
 }
 
@@ -261,9 +262,33 @@ label {
   font-variant-numeric: tabular-nums;
 }
 
+.pull,
+.sorts,
+.lede {
+  max-width: 40rem;
+}
+
 .position {
   margin-top: var(--space-xl);
-  max-width: 62ch;
+  max-width: none;
+}
+
+.position-story,
+.position-sit {
+  min-width: 0;
+}
+
+@media (min-width: 56rem) {
+  .position {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: clamp(1.5rem, 3vw, 3rem);
+    align-items: start;
+  }
+
+  .position-sit > :first-child {
+    margin-top: 0;
+  }
 }
 
 .position h2 {
@@ -425,7 +450,7 @@ a.term-btn {
   display: block;
   width: min(100%, 24rem);
   height: auto;
-  margin-top: var(--space-md);
+  margin-top: var(--space-xs);
 }
 
 .settle {
