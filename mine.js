@@ -1851,6 +1851,12 @@
     slot.sd2.textContent = sdWhere(2, facts);
     if (slot.outcome) slot.outcome.textContent = outcomeNote(slot.group.legs);
     if (slot.settle) paintSettle(slot.settle, slot.group.legs, facts.spot);
+    if (slot.todayFact) paintFactMoney(slot.todayFact, "If closed today", groupResult(slot.group), "Not in the file");
+    if (slot.expiryFact) {
+      const expiry = expiryValue(slot.group.legs, facts.spot);
+      const missing = facts.spot == null ? "Price has not loaded" : "No trade price";
+      paintFactMoney(slot.expiryFact, "At expiration", expiry, missing);
+    }
     drawBand(slot.band, facts, slot.group.legs);
   }
 
@@ -1882,21 +1888,31 @@
     let opened = "";
     if (group.tape && group.tape.daysOpen != null) {
       const days = group.tape.daysOpen;
-      opened = "Opened " + days + (days === 1 ? " day" : " days") + " ago";
+      opened = days + (days === 1 ? " day ago" : " days ago");
     } else {
       const iso = whenISO(group.when);
-      if (iso) opened = "Opened " + prettyISO(iso);
+      if (iso) opened = prettyISO(iso);
     }
     const dates = expirationDates(group.legs);
     let expires = "";
-    if (dates.length === 1) expires = "Expires " + prettyISO(dates[0]);
-    else if (dates.length > 1) expires = "Expires " + dates.map(prettyISO).join(", then ");
-    const result = groupResult(group);
-    return {
-      opened: opened,
-      expires: expires,
-      result: result == null ? "No result in the file" : "Result " + signedMoney(result)
-    };
+    if (dates.length === 1) expires = prettyISO(dates[0]);
+    else if (dates.length > 1) expires = dates.map(prettyISO).join(", then ");
+    return { opened: opened, expires: expires };
+  }
+
+  function paintFact(node, label, value) {
+    node.replaceChildren();
+    node.append(el("span", "fact-k", label), el("span", "fact-v", value || "—"));
+  }
+
+  function paintFactMoney(node, label, value, missing) {
+    node.replaceChildren();
+    node.append(el("span", "fact-k", label));
+    const shown = value == null ? missing : signedMoney(value);
+    const amount = el("span", "fact-v", shown);
+    if (value > 0) amount.classList.add("up");
+    else if (value < 0) amount.classList.add("down");
+    node.append(amount);
   }
 
   function orderedCards() {
@@ -2063,7 +2079,14 @@
       proofCopy.append(outcome, read, sd1Line, sd2Line, terms);
       proofGrid.append(proofChart, proofCopy);
       figure.append(proofGrid);
-      const slot = { guess: guess, group: group, id: id, prefix: prefix, band: band, settle: settle, outcome: outcome, sd1: sd1, sd2: sd2, read: read };
+      const parts = factParts(group);
+      const openedFact = el("p", "position-fact");
+      const expiresFact = el("p", "position-fact when");
+      const expiryFact = el("p", "position-fact money");
+      const todayFact = el("p", "position-fact money");
+      paintFact(openedFact, "Opened", parts.opened);
+      paintFact(expiresFact, "Expires", parts.expires);
+      const slot = { guess: guess, group: group, id: id, prefix: prefix, band: band, settle: settle, outcome: outcome, sd1: sd1, sd2: sd2, read: read, todayFact: todayFact, expiryFact: expiryFact };
       paintFacts(slot, undefined);
       const head = el("div", "position-head");
       const idBlock = el("div", "position-id");
@@ -2075,9 +2098,8 @@
       const mark = el("span", "toggle-mark", "+");
       mark.setAttribute("aria-hidden", "true");
       toggle.append(mark);
-      const parts = factParts(group);
       const facts = el("div", "position-facts");
-      facts.append(el("p", "position-fact", parts.opened), el("p", "position-fact", parts.expires), el("p", "position-fact", parts.result));
+      facts.append(openedFact, expiresFact, expiryFact, todayFact);
       idBlock.append(title, facts);
       head.append(toggle, idBlock);
       const body = el("div", "position-body");

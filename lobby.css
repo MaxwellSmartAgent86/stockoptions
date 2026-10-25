@@ -260,6 +260,7 @@ label {
 
 .position-fact {
   margin: 0;
+  min-width: 0;
   font-family: var(--font-figure);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
@@ -268,6 +269,38 @@ label {
 
 .position-fact + .position-fact {
   margin-top: var(--space-3xs);
+}
+
+.fact-k,
+.fact-v {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fact-k {
+  color: var(--color-muted);
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.fact-v {
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.position-fact.when .fact-v {
+  white-space: normal;
+  overflow: visible;
+}
+
+.fact-v.up {
+  color: var(--color-gain);
+}
+
+.fact-v.down {
+  color: var(--color-loss);
 }
 
 .pull,
@@ -329,9 +362,9 @@ label {
 @media (min-width: 56rem) {
   .position-head {
     display: grid;
-    grid-template-columns: auto minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 1.85fr) minmax(0, 0.9fr);
+    grid-template-columns: auto minmax(0, 1.45fr) minmax(0, 0.85fr) minmax(0, 1.35fr) minmax(0, 1.05fr) minmax(0, 1.1fr);
     align-items: center;
-    column-gap: clamp(1rem, 2vw, 2.5rem);
+    column-gap: clamp(0.85rem, 1.6vw, 1.75rem);
   }
 
   .position-id,
@@ -345,6 +378,11 @@ label {
 
   .position-fact + .position-fact {
     margin-top: 0;
+  }
+
+  .position-fact.money .fact-k,
+  .position-fact.money .fact-v {
+    text-align: right;
   }
 }
 
