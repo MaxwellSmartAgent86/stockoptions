@@ -2012,16 +2012,19 @@
       const drawn = drawPayoff(payoff, id, prefix, trade.name);
       const slotNote = el("p", "slot-note");
       setLinked(slotNote, shapeNote(id, group.legs));
+      const containedHead = el("h3", "", "What is contained?");
       if (drawn) {
         const face = payoffFace(id, trade.name);
         const shape = el("div", "payoff-mark");
+        const lead = el("div", "payoff-lead");
         const pill = el("p", "payoff-pill", face.label);
         if (face.pill) pill.style.setProperty("--pill", face.pill);
-        shape.append(payoff, pill);
-        intro.append(shape, slotNote);
+        shape.append(payoff);
+        lead.append(pill, slotNote);
+        intro.append(shape, lead, containedHead, legs);
       } else {
         intro.classList.add("payoff-intro-plain");
-        intro.append(slotNote);
+        intro.append(slotNote, containedHead, legs);
       }
       const figure = el("figure", "proof-mini");
       const band = el("div", "band");
@@ -2082,7 +2085,7 @@
       body.hidden = true;
       const story = el("div", "position-story");
       const notes = el("div", "position-notes");
-      story.append(legs, el("h3", "", "What the legs are"), what, el("h3", "", "The goal"), goal);
+      story.append(el("h3", "", "What the legs are"), what, el("h3", "", "The goal"), goal);
       if (trade.id && trade.where) story.append(el("h3", "", "Where the lesson uses it"), where);
       story.append(
         el("h3", "", "Why this was chosen"),
@@ -2101,7 +2104,9 @@
         alts.append(li);
       });
       notes.append(el("h3", "", "Other strategies that could be used"), alts.childElementCount ? alts : el("p", "", "The lesson does not name another strategy for this shape."));
-      body.append(intro, figure, story, notes);
+      const lower = el("div", "position-lower");
+      lower.append(story, notes);
+      body.append(intro, figure, lower);
       article.append(head, body);
       toggle.addEventListener("click", () => {
         setOpen(article, body.hidden);

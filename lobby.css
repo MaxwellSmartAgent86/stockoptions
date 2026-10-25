@@ -362,23 +362,23 @@ label {
   min-width: 0;
 }
 
-@media (min-width: 56rem) {
-  .position-body {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    column-gap: clamp(1.5rem, 3vw, 3rem);
-    align-items: start;
-  }
+.position-lower {
+  margin-top: var(--space-xl);
+}
 
+@media (min-width: 56rem) {
   .position-body[hidden] {
     display: none;
   }
 
-  .payoff-intro,
-  .proof-mini {
-    grid-column: 1 / -1;
+  .position-lower {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    column-gap: clamp(1.5rem, 3vw, 3rem);
+    align-items: start;
   }
 
+  .position-story > :first-child,
   .position-notes > :first-child {
     margin-top: 0;
   }
@@ -426,7 +426,7 @@ label {
 }
 
 .payoff-mark {
-  width: min(100%, 15.5rem);
+  width: min(100%, 13.5rem);
 }
 
 .payoff-intro .fit {
@@ -439,9 +439,11 @@ label {
 }
 
 .payoff-pill {
-  margin: 0.4rem 0 0;
-  width: 100%;
-  padding: 0.32rem 0.55rem 0.36rem;
+  display: inline-block;
+  width: auto;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.32rem 0.85rem 0.36rem;
   border-radius: 999px;
   background: var(--pill, var(--color-ink));
   color: #fff;
@@ -457,6 +459,14 @@ label {
   paint-order: stroke fill;
 }
 
+.payoff-intro > h3 {
+  margin: var(--space-md) 0 var(--space-xs);
+}
+
+.payoff-intro > .legs {
+  margin-top: 0;
+}
+
 .slot-note {
   margin: var(--space-sm) 0 0;
   max-width: 62ch;
@@ -465,13 +475,14 @@ label {
 @media (min-width: 56rem) {
   .payoff-intro {
     display: grid;
-    grid-template-columns: 15.5rem minmax(0, 1fr);
+    grid-template-columns: 13.5rem minmax(0, 1fr);
     column-gap: clamp(1.5rem, 3vw, 3rem);
-    align-items: center;
+    align-items: start;
   }
 
-  .payoff-intro .slot-note {
-    margin-top: 0;
+  .payoff-intro > h3,
+  .payoff-intro > .legs {
+    grid-column: 1 / -1;
   }
 
   .payoff-intro.payoff-intro-plain {
